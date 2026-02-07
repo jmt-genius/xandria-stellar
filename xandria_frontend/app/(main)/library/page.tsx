@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import Link from "next/link";
 import { useStore } from "@/stores/useStore";
 import OwnedBookCard from "@/components/owned-book-card";
@@ -9,6 +9,12 @@ export default function LibraryPage() {
   const { ownedBooks, books, walletAddress, fetchBooks, syncOwnedBooks } = useStore();
   const [syncing, setSyncing] = useState(false);
   const syncedRef = useRef<string | null>(null);
+
+  // Only show books belonging to the connected wallet
+  const myBooks = useMemo(
+    () => ownedBooks.filter((b) => b.ownerAddress === walletAddress),
+    [ownedBooks, walletAddress]
+  );
 
   useEffect(() => {
     const load = async () => {
@@ -34,7 +40,7 @@ export default function LibraryPage() {
     );
   }
 
-  if (syncing && ownedBooks.length === 0) {
+  if (syncing && myBooks.length === 0) {
     return (
       <div className="min-h-[80vh] flex flex-col items-center justify-center">
         <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin mb-4" />
@@ -45,7 +51,7 @@ export default function LibraryPage() {
     );
   }
 
-  if (ownedBooks.length === 0) {
+  if (myBooks.length === 0) {
     return (
       <div className="min-h-[80vh] flex flex-col items-center justify-center">
         <p className="font-display text-2xl text-text-secondary mb-3">
@@ -67,11 +73,11 @@ export default function LibraryPage() {
         Your Library
       </h1>
       <p className="text-text-secondary text-sm mb-10">
-        {ownedBooks.length} edition{ownedBooks.length !== 1 ? "s" : ""}
+        {myBooks.length} edition{myBooks.length !== 1 ? "s" : ""}
       </p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-        {ownedBooks.map((owned) => {
+        {myBooks.map((owned) => {
           const book = books.find((b) => b.id === owned.bookId);
           if (!book) return null;
           return (

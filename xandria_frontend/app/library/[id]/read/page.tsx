@@ -18,10 +18,11 @@ export default function ReaderPage({
   const bookId = parseInt(id);
   const router = useRouter();
 
-  const { books, fetchBooks, isOwned, getOwnedBook, walletAddress, currentPage, setCurrentPage } = useStore();
+  const { books, fetchBooks, isOwned, getOwnedBook, checkOnChainOwnership, walletAddress, currentPage, setCurrentPage } = useStore();
   const [aiOpen, setAiOpen] = useState(false);
   const [direction, setDirection] = useState(1);
   const [loaded, setLoaded] = useState(false);
+  const [verified, setVerified] = useState<boolean | null>(null);
 
   useEffect(() => {
     fetchBooks().then(() => setLoaded(true));
@@ -30,6 +31,25 @@ export default function ReaderPage({
   const book = useMemo(() => books.find((b) => b.id === bookId), [books, bookId]);
   const ownedBook = getOwnedBook(bookId);
   const owned = isOwned(bookId);
+
+  // On-chain ownership verification — the contract is the source of truth
+  useEffect(() => {
+    if (!loaded || !walletAddress || !book) return;
+    if (!owned) {
+      setVerified(false);
+      return;
+    }
+    // Author bypass — no need to check contract
+    if (book.authorAddress === walletAddress) {
+      setVerified(true);
+      return;
+    }
+    let cancelled = false;
+    checkOnChainOwnership(bookId).then((result) => {
+      if (!cancelled) setVerified(result);
+    });
+    return () => { cancelled = true; };
+  }, [loaded, walletAddress, book, owned, bookId, checkOnChainOwnership]);
 
   // Flatten all pages
   const allPages = useMemo(() => {
@@ -85,7 +105,7 @@ export default function ReaderPage({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [goNext, goPrev]);
 
-  if (!loaded) {
+  if (!loaded || verified === null) {
     return (
       <div className="fixed inset-0 bg-[#0A0A08] flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
@@ -93,7 +113,23 @@ export default function ReaderPage({
     );
   }
 
-  if (!book || !owned || !ownedBook) {
+  if (!walletAddress) {
+    return (
+      <div className="fixed inset-0 bg-[#0A0A08] flex flex-col items-center justify-center">
+        <p className="font-display text-xl text-text-secondary mb-4">
+          Connect your wallet to read this book
+        </p>
+        <button
+          onClick={() => router.push("/marketplace")}
+          className="text-accent text-sm hover:underline"
+        >
+          Browse marketplace
+        </button>
+      </div>
+    );
+  }
+
+  if (!book || !owned || !ownedBook || !verified) {
     return (
       <div className="fixed inset-0 bg-[#0A0A08] flex flex-col items-center justify-center">
         <p className="font-display text-xl text-text-secondary mb-4">

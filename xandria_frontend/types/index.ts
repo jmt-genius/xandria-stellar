@@ -25,6 +25,7 @@ export type Chapter = {
 
 export type OwnedBook = {
   bookId: number;
+  ownerAddress: string;
   mintNumber: number;
   editionCover: string;
   purchasedAt: string;

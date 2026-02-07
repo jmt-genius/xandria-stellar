@@ -147,13 +147,18 @@ export const useStore = create<AppStore>()(
       ownedBooks: [],
 
       purchaseBook: (bookId, mintNumber, txHash) => {
+        const address = get().walletAddress;
+        if (!address) return;
         const book = get().getBookById(bookId);
         if (!book) return;
+        // Don't add duplicates for the same wallet
+        if (get().ownedBooks.some((b) => b.bookId === bookId && b.ownerAddress === address)) return;
         set({
           ownedBooks: [
             ...get().ownedBooks,
             {
               bookId,
+              ownerAddress: address,
               mintNumber,
               editionCover: book.coverUri,
               purchasedAt: new Date().toISOString(),
@@ -240,9 +245,16 @@ export const useStore = create<AppStore>()(
         }
       },
 
-      isOwned: (bookId) => get().ownedBooks.some((b) => b.bookId === bookId),
-      getOwnedBook: (bookId) =>
-        get().ownedBooks.find((b) => b.bookId === bookId),
+      isOwned: (bookId) => {
+        const address = get().walletAddress;
+        if (!address) return false;
+        return get().ownedBooks.some((b) => b.bookId === bookId && b.ownerAddress === address);
+      },
+      getOwnedBook: (bookId) => {
+        const address = get().walletAddress;
+        if (!address) return undefined;
+        return get().ownedBooks.find((b) => b.bookId === bookId && b.ownerAddress === address);
+      },
 
       // Reading
       currentPage: {},
