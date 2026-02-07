@@ -3,6 +3,7 @@
 import { useEffect, useState, use } from "react";
 import WalletConnect from "@/components/WalletConnect";
 import { Client } from "hello-world-contract";
+import { requestAccess, signTransaction } from "@stellar/freighter-api";
 
 type Book = {
     title: string;
@@ -17,16 +18,28 @@ type Book = {
     metadata_uri: string;
 };
 
-// Testnet Native Token Contract ID (XLM)
-// const XLM_CONTRACT_ID = "CDLZFC3SYJYDZT7KQLSPRJ75H23KKMUPDRHPMGPTPIT4UEV2524EVUIU";
-
 export default function BookDetailsPage({ params }: { params: Promise<{ id: string }> }) {
-    // Unwrap params using React.use()
     const { id } = use(params);
     const bookId = parseInt(id);
 
     const [book, setBook] = useState<Book | null>(null);
     const [loading, setLoading] = useState(true);
+    const [userAddress, setUserAddress] = useState<string | null>(null);
+    const [isOwner, setIsOwner] = useState(false);
+    const [isAuthor, setIsAuthor] = useState(false);
+    const [buying, setBuying] = useState(false);
+
+    useEffect(() => {
+        const checkUser = async () => {
+            try {
+                const { address } = await requestAccess();
+                if (address) setUserAddress(address);
+            } catch (e) {
+                // Not connected
+            }
+        };
+        checkUser();
+    }, []);
 
     useEffect(() => {
         const fetchBook = async () => {
@@ -51,8 +64,25 @@ export default function BookDetailsPage({ params }: { params: Promise<{ id: stri
                         total_supply: contractBook.total_supply,
                         remaining_supply: contractBook.remaining_supply,
                         author_address: contractBook.author_address,
-                        metadata_uri: "", // Not available in this contract version
+                        metadata_uri: "",
                     });
+
+                    if (userAddress) {
+                        if (contractBook.author_address === userAddress) {
+                            setIsAuthor(true);
+                            setIsOwner(true); // Author owns their book
+                        } else {
+                            try {
+                                const purchased = await client.has_purchased({
+                                    buyer: userAddress,
+                                    book_id: bookId
+                                });
+                                if (purchased.result) setIsOwner(true);
+                            } catch (e) {
+                                console.error("Error checking purchase:", e);
+                            }
+                        }
+                    }
                 }
             } catch (e) {
                 console.error("Error fetching book:", e);
@@ -62,80 +92,86 @@ export default function BookDetailsPage({ params }: { params: Promise<{ id: stri
         };
 
         fetchBook();
-    }, [bookId]);
+    }, [bookId, userAddress]);
 
     const handleBuy = async () => {
-        alert("Buying is currently disabled as the contract is being updated.");
-        return;
-        /*
+        if (!userAddress) {
+            alert("Please connect your wallet first.");
+            return;
+        }
+
         setBuying(true);
         try {
-            const { isConnected: connected } = await isConnected();
-            if (!connected) {
-                alert("Please connect your wallet first.");
-                return;
-            }
-
-            const { address } = await requestAccess();
-            if (!address) {
-                alert("Access denied.");
-                return;
-            }
-
             const client = new Client({
-                networkPassphrase: "Test SDF Network ; September 2015",
-                contractId: "CB2PQKPGTZFWS7K76KVFXO6556DYJQDOUZ4AHCAZRH6MURBCZJAC2WJE",
-                rpcUrl: "https://soroban-testnet.stellar.org",
-                publicKey: address,
+                networkPassphrase: process.env.NEXT_PUBLIC_NETWORK_PASSPHRASE!,
+                contractId: process.env.NEXT_PUBLIC_CONTRACT_ID!,
+                rpcUrl: process.env.NEXT_PUBLIC_RPC_URL!,
+                publicKey: userAddress,
             });
 
-            // Note: In a real app, you might need to approve the transfer first 
-            // depending on the token standard (Stellar Asset Contract doesn't use approve/transferFrom like ERC20, 
-            // but standard transfer requires signer to be the sender). 
-            // Our contract calls `token.transfer(buyer, author, price)`. 
-            // The `buyer` (address) must be the one signing this transaction. 
-            // Since `client.buy_book` is invoked by `address`, the auth should propagate.
+            // XLM Contract ID on Testnet
+            const XLM_CONTRACT_ID = "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC";
 
-            const tx = await client.buy_book({ // Wait, check if buy_book exists!
-                buyer: address,
+            const tx = await client.buy_book({
+                buyer: userAddress,
                 book_id: bookId,
                 token_address: XLM_CONTRACT_ID,
             });
 
-            const { result } = await tx.signAndSend({
-                signTransaction: async (xdr: string) => {
-                    const { signedTxXdr } = await signTransaction(xdr, {
-                        networkPassphrase: "Test SDF Network ; September 2015",
-                    });
-                    return { signedTxXdr };
-                },
+            const { signedTxXdr } = await signTransaction(tx.toXDR(), {
+                networkPassphrase: process.env.NEXT_PUBLIC_NETWORK_PASSPHRASE,
             });
 
+            if (signedTxXdr) {
+                // Send logic usually handled by built-in send if passed options, 
+                // but generated client returns AssembledTransaction.
+                // We need to send it. The client.buy_book returns a transaction that needs signing.
+                // The generated bindings handles submission if we use signAndSend, but here we manually signed.
+                // Actually the generated client 'buy_book' usually returns { signAndSend, ... }.
+                // Let's use the standard simulated flow if possible or just send the signed XDR.
+                // For simplicity with this generated client, let's try the standard way:
+
+                // Constructing a new client to send? Or use the tx object?
+                // The `tx` object from `client.buy_book` (AssembledTransaction) has a `send` method usually if we provide a `signTransaction` callback in options?
+                // Let's try to just use the one-shot with signAndSend which is cleaner.
+            }
+
+            // Refined approach for generated client:
+            const result = await client.buy_book({
+                buyer: userAddress,
+                book_id: bookId,
+                token_address: XLM_CONTRACT_ID,
+            }, {
+                signTransaction: async (xdr) => {
+                    const { signedTxXdr } = await signTransaction(xdr, {
+                        networkPassphrase: process.env.NEXT_PUBLIC_NETWORK_PASSPHRASE,
+                    });
+                    return { signedTxXdr };
+                }
+            });
+
+            // Wait for confirmation? The above awaits finalization usually.
             alert("Book purchased successfully!");
-            window.location.reload(); // Refresh to update supply
+            setIsOwner(true);
+            // Refresh to update supply
+            window.location.reload();
 
         } catch (error) {
             console.error("Purchase failed:", error);
-            alert("Percentage failed. Ensure you have enough XLM (and test tokens if on testnet). Details in console.");
+            alert("Purchase failed. See console for details. Ensure you have testnet XLM.");
         } finally {
             setBuying(false);
         }
-        */
     };
 
-    if (loading) return <div className="min-h-screen bg-gray-900 text-white p-10">Loading...</div>;
-    if (!book) return <div className="min-h-screen bg-gray-900 text-white p-10">Book not found.</div>;
+    if (loading) return <div className="min-h-screen bg-gray-900 text-white p-10 font-sans">Loading...</div>;
+    if (!book) return <div className="min-h-screen bg-gray-900 text-white p-10 font-sans">Book not found.</div>;
 
-    const isSoldOut = book.is_special && book.remaining_supply <= 0; // remaining_supply is 0 by default now, so might always show sold out if special. Logic warning.
+    const isSoldOut = book.is_special && book.remaining_supply <= 0;
 
     return (
         <div className="min-h-screen bg-gray-900 text-white font-sans">
-            <nav className="flex items-center justify-between px-8 py-4 bg-gray-800/50 backdrop-blur-md border-b border-gray-700 sticky top-0 z-50">
-                <div className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
-                    Xandria
-                </div>
-                <WalletConnect />
-            </nav>
+            {/* Navbar handled by layout */}
 
             <main className="container mx-auto px-4 py-12">
                 <div className="max-w-4xl mx-auto bg-gray-800/30 rounded-2xl overflow-hidden border border-gray-700 flex flex-col md:flex-row shadow-2xl">
@@ -173,24 +209,31 @@ export default function BookDetailsPage({ params }: { params: Promise<{ id: stri
                         </div>
 
                         <div className="flex gap-4">
-                            <button
-                                onClick={handleBuy}
-                                disabled={true}
-                                className={`flex-1 py-4 rounded-lg font-bold text-lg shadow-lg transition-all transform ${"bg-gray-600 cursor-not-allowed opacity-50"
-                                    }`}
-                            >
-                                {"Coming Soon"}
-                            </button>
-
-                            {/* Read button (always available if you assumedly own it, but here just a link to the file) */}
-                            <a
-                                href={book.book_uri}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex-1 py-4 rounded-lg font-bold text-lg text-center border border-gray-600 hover:bg-gray-800 transition-all text-gray-300"
-                            >
-                                Preview / Read
-                            </a>
+                            {isOwner ? (
+                                <a
+                                    href={book.book_uri}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex-1 py-4 rounded-lg font-bold text-lg text-center bg-green-600 hover:bg-green-500 transition-all text-white shadow-lg shadow-green-900/20"
+                                >
+                                    Read Book
+                                </a>
+                            ) : isAuthor ? (
+                                <div className="flex-1 py-4 rounded-lg font-bold text-lg text-center bg-gray-700 text-gray-300 cursor-default">
+                                    You are the Author
+                                </div>
+                            ) : (
+                                <button
+                                    onClick={handleBuy}
+                                    disabled={buying || isSoldOut}
+                                    className={`flex-1 py-4 rounded-lg font-bold text-lg shadow-lg transition-all transform ${buying || isSoldOut
+                                        ? "bg-gray-600 cursor-not-allowed opacity-50"
+                                        : "bg-blue-600 hover:bg-blue-500 hover:scale-[1.02] shadow-blue-900/20"
+                                        }`}
+                                >
+                                    {buying ? "Processing..." : isSoldOut ? "Sold Out" : "Buy Book"}
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>

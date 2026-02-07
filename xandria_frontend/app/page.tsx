@@ -49,17 +49,6 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gray-900 text-white font-sans">
-      <nav className="flex items-center justify-between px-8 py-4 bg-gray-800/50 backdrop-blur-md border-b border-gray-700 sticky top-0 z-50">
-        <div className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
-          Xandria Marketplace
-        </div>
-        <div className="flex gap-4 items-center">
-          <Link href="/upload-book" className="text-gray-300 hover:text-white transition-colors">
-            Publish
-          </Link>
-          <WalletConnect />
-        </div>
-      </nav>
 
       <main className="container mx-auto px-4 py-12">
         <h1 className="text-4xl font-extrabold mb-8 text-center bg-gradient-to-r from-blue-200 to-purple-200 bg-clip-text text-transparent">
