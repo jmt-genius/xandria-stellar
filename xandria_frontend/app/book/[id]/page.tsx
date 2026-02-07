@@ -118,39 +118,16 @@ export default function BookDetailsPage({ params }: { params: Promise<{ id: stri
                 token_address: XLM_CONTRACT_ID,
             });
 
-            const { signedTxXdr } = await signTransaction(tx.toXDR(), {
-                networkPassphrase: process.env.NEXT_PUBLIC_NETWORK_PASSPHRASE,
-            });
-
-            if (signedTxXdr) {
-                // Send logic usually handled by built-in send if passed options, 
-                // but generated client returns AssembledTransaction.
-                // We need to send it. The client.buy_book returns a transaction that needs signing.
-                // The generated bindings handles submission if we use signAndSend, but here we manually signed.
-                // Actually the generated client 'buy_book' usually returns { signAndSend, ... }.
-                // Let's use the standard simulated flow if possible or just send the signed XDR.
-                // For simplicity with this generated client, let's try the standard way:
-
-                // Constructing a new client to send? Or use the tx object?
-                // The `tx` object from `client.buy_book` (AssembledTransaction) has a `send` method usually if we provide a `signTransaction` callback in options?
-                // Let's try to just use the one-shot with signAndSend which is cleaner.
-            }
-
-            // Refined approach for generated client:
-            const result = await client.buy_book({
-                buyer: userAddress,
-                book_id: bookId,
-                token_address: XLM_CONTRACT_ID,
-            }, {
+            const { result } = await tx.signAndSend({
                 signTransaction: async (xdr) => {
                     const { signedTxXdr } = await signTransaction(xdr, {
                         networkPassphrase: process.env.NEXT_PUBLIC_NETWORK_PASSPHRASE,
                     });
                     return { signedTxXdr };
-                }
+                },
             });
 
-            // Wait for confirmation? The above awaits finalization usually.
+            console.log("Purchase Result:", result);
             alert("Book purchased successfully!");
             setIsOwner(true);
             // Refresh to update supply
