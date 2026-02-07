@@ -14,7 +14,7 @@ export default function Navbar() {
             <Link href="/" className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
                 Xandria Marketplace
             </Link>
-            <div className="flex gap-6 items-center">
+            <div className="flex gap-6 items-center" suppressHydrationWarning>
                 <Link href="/" className={`${isActive("/")} transition-colors`}>
                     Browse Books
                 </Link>
