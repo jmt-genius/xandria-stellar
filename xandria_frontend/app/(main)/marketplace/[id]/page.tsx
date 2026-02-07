@@ -35,40 +35,24 @@ export default function BookDetailsPage({
   const { id } = use(params);
   const bookId = parseInt(id);
 
-  const { books, fetchBooks, isOwned, getOwnedBook, walletAddress, checkOnChainOwnership, purchaseBook } = useStore();
+  const { books, fetchBooks, isOwned, getOwnedBook, walletAddress } = useStore();
   const [book, setBook] = useState<Book | null>(null);
   const [loading, setLoading] = useState(true);
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
   const [showAiSummary, setShowAiSummary] = useState(false);
-  const [onChainOwned, setOnChainOwned] = useState(false);
 
+  // Load the book data
   useEffect(() => {
     const loadBook = async () => {
-      // Try from store first
       await fetchBooks();
       const storeBook = useStore.getState().getBookById(bookId);
       if (storeBook) {
         setBook(storeBook);
         setLoading(false);
-
-        // Check on-chain ownership
-        if (walletAddress && !useStore.getState().isOwned(bookId)) {
-          // Check if author
-          if (storeBook.authorAddress === walletAddress) {
-            purchaseBook(bookId, 0, "author");
-            setOnChainOwned(true);
-          } else {
-            const owned = await checkOnChainOwnership(bookId);
-            if (owned) {
-              purchaseBook(bookId, 0, "on-chain");
-              setOnChainOwned(true);
-            }
-          }
-        }
         return;
       }
 
-      // Fallback: fetch directly
+      // Fallback: fetch directly from contract
       try {
         const client = getContractClient();
         const result = await client.get_book({ book_id: bookId });
@@ -112,7 +96,31 @@ export default function BookDetailsPage({
       }
     };
     loadBook();
-  }, [bookId, fetchBooks, walletAddress, checkOnChainOwnership, purchaseBook]);
+  }, [bookId, fetchBooks]);
+
+  // Check on-chain ownership separately when wallet connects
+  useEffect(() => {
+    if (!walletAddress || !book) return;
+    if (useStore.getState().isOwned(bookId)) return;
+
+    const checkOwnership = async () => {
+      // Check if user is the author
+      if (book.authorAddress === walletAddress) {
+        useStore.getState().purchaseBook(bookId, 0, "author");
+        return;
+      }
+      // Check on-chain purchase
+      try {
+        const owned = await useStore.getState().checkOnChainOwnership(bookId);
+        if (owned && !useStore.getState().isOwned(bookId)) {
+          useStore.getState().purchaseBook(bookId, 0, "on-chain");
+        }
+      } catch {
+        // silent fail for ownership check
+      }
+    };
+    checkOwnership();
+  }, [walletAddress, book, bookId]);
 
   if (loading) {
     return (

@@ -168,7 +168,9 @@ export const useStore = create<AppStore>()(
         const address = get().walletAddress;
         if (!address) throw new Error("Wallet not connected");
 
-        const { signTransaction } = await import("@stellar/freighter-api");
+        // Dynamic import is intentional here — this only runs on user click,
+        // never during SSR or initial render. Keeps freighter out of the store module scope.
+        const freighter = await import("@stellar/freighter-api");
         const client = getContractClient(address);
 
         const tx = await client.buy_book({
@@ -177,9 +179,9 @@ export const useStore = create<AppStore>()(
           token_address: XLM_TOKEN_ADDRESS,
         });
 
-        const { result } = await tx.signAndSend({
+        await tx.signAndSend({
           signTransaction: async (xdr: string) => {
-            const { signedTxXdr } = await signTransaction(xdr, {
+            const { signedTxXdr } = await freighter.signTransaction(xdr, {
               networkPassphrase: NETWORK_PASSPHRASE,
             });
             return { signedTxXdr };
@@ -213,9 +215,11 @@ export const useStore = create<AppStore>()(
         const address = get().walletAddress;
         if (!address) return;
         const books = get().books;
+        if (books.length === 0) return;
         const client = getContractClient();
 
         for (const book of books) {
+          // Re-check isOwned each iteration since purchaseBook mutates state
           if (get().isOwned(book.id)) continue;
           // Check if author
           if (book.authorAddress === address) {
@@ -227,11 +231,11 @@ export const useStore = create<AppStore>()(
               buyer: address,
               book_id: book.id,
             });
-            if (result.result) {
+            if (result.result && !get().isOwned(book.id)) {
               get().purchaseBook(book.id, 0, "on-chain");
             }
           } catch {
-            // skip
+            // skip — contract call failed for this book
           }
         }
       },

@@ -1,12 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { isConnected, requestAccess, signTransaction } from "@stellar/freighter-api";
 import { getContractClient, xlmToStroops } from "@/lib/stellar";
 import { NETWORK_PASSPHRASE } from "@/lib/constants";
+import { useStore } from "@/stores/useStore";
 import { uploadFileToPinata } from "@/utils/pinata";
 
 export default function UploadBookPage() {
+  const router = useRouter();
   const [formData, setFormData] = useState({
     title: "",
     author: "",
@@ -85,7 +88,10 @@ export default function UploadBookPage() {
         },
       });
 
+      // Force refetch books on next marketplace visit
+      useStore.setState({ books: [], booksError: null });
       alert(`Book published successfully! ID: ${result}`);
+      router.push("/marketplace");
     } catch (error) {
       console.error("Error publishing book:", error);
       alert("Failed to publish book. See console for details.");
