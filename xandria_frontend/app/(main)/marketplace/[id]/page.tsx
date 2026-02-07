@@ -35,11 +35,12 @@ export default function BookDetailsPage({
   const { id } = use(params);
   const bookId = parseInt(id);
 
-  const { books, fetchBooks, isOwned, getOwnedBook } = useStore();
+  const { books, fetchBooks, isOwned, getOwnedBook, walletAddress, checkOnChainOwnership, purchaseBook } = useStore();
   const [book, setBook] = useState<Book | null>(null);
   const [loading, setLoading] = useState(true);
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
   const [showAiSummary, setShowAiSummary] = useState(false);
+  const [onChainOwned, setOnChainOwned] = useState(false);
 
   useEffect(() => {
     const loadBook = async () => {
@@ -49,6 +50,21 @@ export default function BookDetailsPage({
       if (storeBook) {
         setBook(storeBook);
         setLoading(false);
+
+        // Check on-chain ownership
+        if (walletAddress && !useStore.getState().isOwned(bookId)) {
+          // Check if author
+          if (storeBook.authorAddress === walletAddress) {
+            purchaseBook(bookId, 0, "author");
+            setOnChainOwned(true);
+          } else {
+            const owned = await checkOnChainOwnership(bookId);
+            if (owned) {
+              purchaseBook(bookId, 0, "on-chain");
+              setOnChainOwned(true);
+            }
+          }
+        }
         return;
       }
 
@@ -96,7 +112,7 @@ export default function BookDetailsPage({
       }
     };
     loadBook();
-  }, [bookId, fetchBooks]);
+  }, [bookId, fetchBooks, walletAddress, checkOnChainOwnership, purchaseBook]);
 
   if (loading) {
     return (

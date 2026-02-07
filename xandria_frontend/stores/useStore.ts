@@ -4,6 +4,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { Book, OwnedBook, AiMessage, Notification } from "@/types";
 import { getContractClient, stroopsToXlm } from "@/lib/stellar";
+import { XLM_TOKEN_ADDRESS, NETWORK_PASSPHRASE } from "@/lib/constants";
 import { bookEnrichment } from "@/data/books";
 import { getAiResponse } from "@/data/ai-responses";
 
@@ -23,9 +24,12 @@ interface AppStore {
   fetchBooks: () => Promise<void>;
   getBookById: (id: number) => Book | undefined;
 
-  // Owned books (persisted)
+  // Owned books (persisted + on-chain check)
   ownedBooks: OwnedBook[];
   purchaseBook: (bookId: number, mintNumber: number, txHash: string) => void;
+  buyBookOnChain: (bookId: number) => Promise<void>;
+  checkOnChainOwnership: (bookId: number) => Promise<boolean>;
+  syncOwnedBooks: () => Promise<void>;
   isOwned: (bookId: number) => boolean;
   getOwnedBook: (bookId: number) => OwnedBook | undefined;
 
@@ -158,6 +162,78 @@ export const useStore = create<AppStore>()(
             },
           ],
         });
+      },
+
+      buyBookOnChain: async (bookId) => {
+        const address = get().walletAddress;
+        if (!address) throw new Error("Wallet not connected");
+
+        const { signTransaction } = await import("@stellar/freighter-api");
+        const client = getContractClient(address);
+
+        const tx = await client.buy_book({
+          buyer: address,
+          book_id: bookId,
+          token_address: XLM_TOKEN_ADDRESS,
+        });
+
+        const { result } = await tx.signAndSend({
+          signTransaction: async (xdr: string) => {
+            const { signedTxXdr } = await signTransaction(xdr, {
+              networkPassphrase: NETWORK_PASSPHRASE,
+            });
+            return { signedTxXdr };
+          },
+        });
+
+        // Record locally after successful on-chain purchase
+        const book = get().getBookById(bookId);
+        const mintNumber = book?.isSpecial && book.remainingSupply > 0
+          ? book.totalSupply - book.remainingSupply + 1
+          : Math.floor(Math.random() * 200) + 1;
+        get().purchaseBook(bookId, mintNumber, `tx_${Date.now()}_${bookId}`);
+      },
+
+      checkOnChainOwnership: async (bookId) => {
+        const address = get().walletAddress;
+        if (!address) return false;
+        try {
+          const client = getContractClient();
+          const result = await client.has_purchased({
+            buyer: address,
+            book_id: bookId,
+          });
+          return !!result.result;
+        } catch {
+          return false;
+        }
+      },
+
+      syncOwnedBooks: async () => {
+        const address = get().walletAddress;
+        if (!address) return;
+        const books = get().books;
+        const client = getContractClient();
+
+        for (const book of books) {
+          if (get().isOwned(book.id)) continue;
+          // Check if author
+          if (book.authorAddress === address) {
+            get().purchaseBook(book.id, 0, "author");
+            continue;
+          }
+          try {
+            const result = await client.has_purchased({
+              buyer: address,
+              book_id: book.id,
+            });
+            if (result.result) {
+              get().purchaseBook(book.id, 0, "on-chain");
+            }
+          } catch {
+            // skip
+          }
+        }
       },
 
       isOwned: (bookId) => get().ownedBooks.some((b) => b.bookId === bookId),

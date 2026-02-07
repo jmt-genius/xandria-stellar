@@ -1,11 +1,46 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useStore } from "@/stores/useStore";
 import OwnedBookCard from "@/components/owned-book-card";
 
 export default function LibraryPage() {
-  const { ownedBooks, books } = useStore();
+  const { ownedBooks, books, walletAddress, fetchBooks, syncOwnedBooks } = useStore();
+  const [syncing, setSyncing] = useState(false);
+
+  useEffect(() => {
+    const load = async () => {
+      await fetchBooks();
+      if (walletAddress) {
+        setSyncing(true);
+        await syncOwnedBooks();
+        setSyncing(false);
+      }
+    };
+    load();
+  }, [fetchBooks, walletAddress, syncOwnedBooks]);
+
+  if (!walletAddress) {
+    return (
+      <div className="min-h-[80vh] flex flex-col items-center justify-center">
+        <p className="font-display text-2xl text-text-secondary mb-3">
+          Connect your wallet to view your library.
+        </p>
+      </div>
+    );
+  }
+
+  if (syncing && ownedBooks.length === 0) {
+    return (
+      <div className="min-h-[80vh] flex flex-col items-center justify-center">
+        <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin mb-4" />
+        <p className="text-text-secondary text-sm">
+          Checking your library shelves...
+        </p>
+      </div>
+    );
+  }
 
   if (ownedBooks.length === 0) {
     return (

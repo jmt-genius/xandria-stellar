@@ -4,6 +4,12 @@ import type { u32, i128, Option } from "@stellar/stellar-sdk/contract";
 export * from "@stellar/stellar-sdk";
 export * as contract from "@stellar/stellar-sdk/contract";
 export * as rpc from "@stellar/stellar-sdk/rpc";
+export declare const networks: {
+    readonly testnet: {
+        readonly networkPassphrase: "Test SDF Network ; September 2015";
+        readonly contractId: "CAON5KLCJJLLRJYXKTJCMZG5H27SM5GP4RWQJLKH3P4O3IDDEF24B4GR";
+    };
+};
 export interface Book {
     author: string;
     author_address: string;
@@ -21,6 +27,9 @@ export type DataKey = {
 } | {
     tag: "TokenIdCounter";
     values: void;
+} | {
+    tag: "Purchase";
+    values: readonly [string, u32];
 };
 export interface Client {
     /**
@@ -50,6 +59,13 @@ export interface Client {
         is_special: boolean;
         supply: u32;
     }, options?: MethodOptions) => Promise<AssembledTransaction<u32>>;
+    /**
+     * Construct and simulate a has_purchased transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
+     */
+    has_purchased: ({ buyer, book_id }: {
+        buyer: string;
+        book_id: u32;
+    }, options?: MethodOptions) => Promise<AssembledTransaction<boolean>>;
 }
 export declare class Client extends ContractClient {
     readonly options: ContractClientOptions;
@@ -68,5 +84,6 @@ export declare class Client extends ContractClient {
         buy_book: (json: string) => AssembledTransaction<null>;
         get_book: (json: string) => AssembledTransaction<Option<Book>>;
         publish_book: (json: string) => AssembledTransaction<number>;
+        has_purchased: (json: string) => AssembledTransaction<boolean>;
     };
 }

@@ -6,7 +6,7 @@ import type { Book } from "@/types";
 import { useStore } from "@/stores/useStore";
 import CoverReveal from "./cover-reveal";
 
-type Phase = "confirm" | "signing" | "minting" | "success";
+type Phase = "confirm" | "signing" | "minting" | "success" | "error";
 
 export default function PurchaseModal({
   book,
@@ -15,8 +15,9 @@ export default function PurchaseModal({
   book: Book;
   onClose: () => void;
 }) {
-  const { walletAddress, purchaseBook, addNotification } = useStore();
+  const { walletAddress, buyBookOnChain, addNotification } = useStore();
   const [phase, setPhase] = useState<Phase>("confirm");
+  const [error, setError] = useState<string | null>(null);
   const [mintNumber] = useState(() => {
     if (book.isSpecial && book.remainingSupply > 0) {
       return book.totalSupply - book.remainingSupply + 1;
@@ -26,17 +27,21 @@ export default function PurchaseModal({
 
   const handleConfirm = async () => {
     setPhase("signing");
+    setError(null);
 
-    // Simulate signing delay
-    await new Promise((r) => setTimeout(r, 1500));
-    setPhase("minting");
+    try {
+      await buyBookOnChain(book.id);
+      setPhase("minting");
+    } catch (err) {
+      console.error("Purchase failed:", err);
+      const message = err instanceof Error ? err.message : "Purchase failed";
+      setError(message);
+      setPhase("error");
+    }
   };
 
   const handleRevealComplete = () => {
-    // Hold for 0.8s after reveal
     setTimeout(() => {
-      const txHash = `tx_${Date.now()}_${book.id}`;
-      purchaseBook(book.id, mintNumber, txHash);
       addNotification({
         id: crypto.randomUUID(),
         title: `${book.title}`,
@@ -49,7 +54,7 @@ export default function PurchaseModal({
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={phase === "confirm" ? onClose : undefined} />
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={phase === "confirm" || phase === "error" ? onClose : undefined} />
       <motion.div
         className="relative bg-surface border border-border rounded-xl max-w-md w-full mx-4 shadow-[var(--shadow-modal)] overflow-hidden"
         initial={{ opacity: 0, scale: 0.98 }}
@@ -123,6 +128,40 @@ export default function PurchaseModal({
               <p className="text-text-secondary text-sm">
                 Waiting for wallet signature...
               </p>
+              <p className="text-text-muted text-xs mt-2">
+                Please confirm the transaction in Freighter
+              </p>
+            </motion.div>
+          )}
+
+          {phase === "error" && (
+            <motion.div
+              key="error"
+              className="p-8 text-center"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <p className="font-display text-lg text-text-primary mb-3">
+                Purchase Failed
+              </p>
+              <p className="text-error text-sm mb-6 break-words">
+                {error}
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={onClose}
+                  className="flex-1 py-3 border border-border text-text-secondary hover:text-text-primary transition-colors text-sm font-body"
+                >
+                  Close
+                </button>
+                <button
+                  onClick={() => setPhase("confirm")}
+                  className="flex-1 py-3 bg-accent text-background font-body font-medium text-sm transition-opacity hover:opacity-90"
+                >
+                  Try Again
+                </button>
+              </div>
             </motion.div>
           )}
 

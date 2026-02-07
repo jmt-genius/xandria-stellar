@@ -20,6 +20,7 @@ pub struct Book {
 pub enum DataKey {
     Book(u32),
     TokenIdCounter,
+    Purchase(Address, u32),
 }
 
 #[contract]
@@ -87,9 +88,26 @@ impl HelloWorldContract {
             panic!("Book is sold out");
         }
 
+        if buyer == book.author_address {
+            panic!("Author cannot buy their own book");
+        }
+
+        if env
+            .storage()
+            .persistent()
+            .has(&DataKey::Purchase(buyer.clone(), book_id))
+        {
+            panic!("You have already bought this book");
+        }
+
         // Transfer funds
         let token = token::Client::new(&env, &token_address);
         token.transfer(&buyer, &book.author_address, &book.price);
+
+        // Record purchase
+        env.storage()
+            .persistent()
+            .set(&DataKey::Purchase(buyer, book_id), &true);
 
         // Update supply if special
         if book.is_special {
@@ -98,6 +116,12 @@ impl HelloWorldContract {
                 .persistent()
                 .set(&DataKey::Book(book_id), &book);
         }
+    }
+
+    pub fn has_purchased(env: Env, buyer: Address, book_id: u32) -> bool {
+        env.storage()
+            .persistent()
+            .has(&DataKey::Purchase(buyer, book_id))
     }
 }
 

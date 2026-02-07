@@ -22,7 +22,7 @@ export const uploadFileToPinata = async (file: File): Promise<string> => {
     return `https://chocolate-worldwide-earwig-657.mypinata.cloud/ipfs/${data.IpfsHash}`;
 };
 
-export const uploadJSONToPinata = async (json: any): Promise<string> => {
+export const uploadJSONToPinata = async (json: unknown): Promise<string> => {
     if (!PINATA_JWT) throw new Error("Pinata JWT not found");
 
     const res = await fetch("https://api.pinata.cloud/pinning/pinJSONToIPFS", {

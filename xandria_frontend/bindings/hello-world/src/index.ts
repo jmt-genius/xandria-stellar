@@ -31,7 +31,12 @@ if (typeof window !== "undefined") {
 }
 
 
-
+export const networks = {
+  testnet: {
+    networkPassphrase: "Test SDF Network ; September 2015",
+    contractId: "CAON5KLCJJLLRJYXKTJCMZG5H27SM5GP4RWQJLKH3P4O3IDDEF24B4GR",
+  }
+} as const
 
 
 export interface Book {
@@ -46,7 +51,7 @@ export interface Book {
   total_supply: u32;
 }
 
-export type DataKey = {tag: "Book", values: readonly [u32]} | {tag: "TokenIdCounter", values: void};
+export type DataKey = {tag: "Book", values: readonly [u32]} | {tag: "TokenIdCounter", values: void} | {tag: "Purchase", values: readonly [string, u32]};
 
 export interface Client {
   /**
@@ -63,6 +68,11 @@ export interface Client {
    * Construct and simulate a publish_book transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
    */
   publish_book: ({author, title, author_name, price, cover_uri, book_uri, is_special, supply}: {author: string, title: string, author_name: string, price: i128, cover_uri: string, book_uri: string, is_special: boolean, supply: u32}, options?: MethodOptions) => Promise<AssembledTransaction<u32>>
+
+  /**
+   * Construct and simulate a has_purchased transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
+   */
+  has_purchased: ({buyer, book_id}: {buyer: string, book_id: u32}, options?: MethodOptions) => Promise<AssembledTransaction<boolean>>
 
 }
 export class Client extends ContractClient {
@@ -83,16 +93,18 @@ export class Client extends ContractClient {
   constructor(public readonly options: ContractClientOptions) {
     super(
       new ContractSpec([ "AAAAAQAAAAAAAAAAAAAABEJvb2sAAAAJAAAAAAAAAAZhdXRob3IAAAAAABAAAAAAAAAADmF1dGhvcl9hZGRyZXNzAAAAAAATAAAAAAAAAAhib29rX3VyaQAAABAAAAAAAAAACWNvdmVyX3VyaQAAAAAAABAAAAAAAAAACmlzX3NwZWNpYWwAAAAAAAEAAAAAAAAABXByaWNlAAAAAAAACwAAAAAAAAAQcmVtYWluaW5nX3N1cHBseQAAAAQAAAAAAAAABXRpdGxlAAAAAAAAEAAAAAAAAAAMdG90YWxfc3VwcGx5AAAABA==",
-        "AAAAAgAAAAAAAAAAAAAAB0RhdGFLZXkAAAAAAgAAAAEAAAAAAAAABEJvb2sAAAABAAAABAAAAAAAAAAAAAAADlRva2VuSWRDb3VudGVyAAA=",
+        "AAAAAgAAAAAAAAAAAAAAB0RhdGFLZXkAAAAAAwAAAAEAAAAAAAAABEJvb2sAAAABAAAABAAAAAAAAAAAAAAADlRva2VuSWRDb3VudGVyAAAAAAABAAAAAAAAAAhQdXJjaGFzZQAAAAIAAAATAAAABA==",
         "AAAAAAAAAAAAAAAIYnV5X2Jvb2sAAAADAAAAAAAAAAVidXllcgAAAAAAABMAAAAAAAAAB2Jvb2tfaWQAAAAABAAAAAAAAAANdG9rZW5fYWRkcmVzcwAAAAAAABMAAAAA",
         "AAAAAAAAAAAAAAAIZ2V0X2Jvb2sAAAABAAAAAAAAAAdib29rX2lkAAAAAAQAAAABAAAD6AAAB9AAAAAEQm9vaw==",
-        "AAAAAAAAAAAAAAAMcHVibGlzaF9ib29rAAAACAAAAAAAAAAGYXV0aG9yAAAAAAATAAAAAAAAAAV0aXRsZQAAAAAAABAAAAAAAAAAC2F1dGhvcl9uYW1lAAAAABAAAAAAAAAABXByaWNlAAAAAAAACwAAAAAAAAAJY292ZXJfdXJpAAAAAAAAEAAAAAAAAAAIYm9va191cmkAAAAQAAAAAAAAAAppc19zcGVjaWFsAAAAAAABAAAAAAAAAAZzdXBwbHkAAAAAAAQAAAABAAAABA==" ]),
+        "AAAAAAAAAAAAAAAMcHVibGlzaF9ib29rAAAACAAAAAAAAAAGYXV0aG9yAAAAAAATAAAAAAAAAAV0aXRsZQAAAAAAABAAAAAAAAAAC2F1dGhvcl9uYW1lAAAAABAAAAAAAAAABXByaWNlAAAAAAAACwAAAAAAAAAJY292ZXJfdXJpAAAAAAAAEAAAAAAAAAAIYm9va191cmkAAAAQAAAAAAAAAAppc19zcGVjaWFsAAAAAAABAAAAAAAAAAZzdXBwbHkAAAAAAAQAAAABAAAABA==",
+        "AAAAAAAAAAAAAAANaGFzX3B1cmNoYXNlZAAAAAAAAAIAAAAAAAAABWJ1eWVyAAAAAAAAEwAAAAAAAAAHYm9va19pZAAAAAAEAAAAAQAAAAE=" ]),
       options
     )
   }
   public readonly fromJSON = {
     buy_book: this.txFromJSON<null>,
         get_book: this.txFromJSON<Option<Book>>,
-        publish_book: this.txFromJSON<u32>
+        publish_book: this.txFromJSON<u32>,
+        has_purchased: this.txFromJSON<boolean>
   }
 }
