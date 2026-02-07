@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import {
     isConnected,
     requestAccess,
-    setAllowed,
+    // setAllowed,
 } from "@stellar/freighter-api";
 
 export default function WalletConnect() {

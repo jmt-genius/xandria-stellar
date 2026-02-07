@@ -2,7 +2,6 @@
 
 import { useEffect, useState, use } from "react";
 import WalletConnect from "@/components/WalletConnect";
-import { isConnected, requestAccess, signTransaction } from "@stellar/freighter-api";
 import { Client } from "hello-world-contract";
 
 type Book = {
@@ -19,7 +18,7 @@ type Book = {
 };
 
 // Testnet Native Token Contract ID (XLM)
-const XLM_CONTRACT_ID = "CDLZFC3SYJYDZT7KQLSPRJ75H23KKMUPDRHPMGPTPIT4UEV2524EVUIU";
+// const XLM_CONTRACT_ID = "CDLZFC3SYJYDZT7KQLSPRJ75H23KKMUPDRHPMGPTPIT4UEV2524EVUIU";
 
 export default function BookDetailsPage({ params }: { params: Promise<{ id: string }> }) {
     // Unwrap params using React.use()
@@ -28,40 +27,31 @@ export default function BookDetailsPage({ params }: { params: Promise<{ id: stri
 
     const [book, setBook] = useState<Book | null>(null);
     const [loading, setLoading] = useState(true);
-    const [buying, setBuying] = useState(false);
 
     useEffect(() => {
         const fetchBook = async () => {
             const client = new Client({
-                networkPassphrase: "Test SDF Network ; September 2015",
-                contractId: "CB2PQKPGTZFWS7K76KVFXO6556DYJQDOUZ4AHCAZRH6MURBCZJAC2WJE",
-                rpcUrl: "https://soroban-testnet.stellar.org",
+                networkPassphrase: process.env.NEXT_PUBLIC_NETWORK_PASSPHRASE!,
+                contractId: process.env.NEXT_PUBLIC_CONTRACT_ID!,
+                rpcUrl: process.env.NEXT_PUBLIC_RPC_URL!,
             });
 
             try {
                 const result = await client.get_book({ book_id: bookId });
                 if (result.result) {
                     const contractBook = result.result;
-                    // Fetch metadata
-                    let metadata: any = {};
-                    try {
-                        const res = await fetch(contractBook.metadata_uri);
-                        metadata = await res.json();
-                    } catch (err) {
-                        console.error("Failed to fetch metadata:", err);
-                    }
 
                     setBook({
-                        title: contractBook.title, // Contract title takes precedence or metadata? Usually metadata has richer info.
+                        title: contractBook.title,
                         author: contractBook.author,
-                        price: contractBook.price,
-                        cover_uri: metadata.cover_uri || "",
-                        book_uri: metadata.book_uri || "",
-                        is_special: metadata.is_special || false,
-                        total_supply: metadata.supply || 0,
-                        remaining_supply: 0, // Not available in contract currently
-                        author_address: contractBook.author, // Assuming author field in contract IS the address. 'mint_book' args says 'author' is string. Code passed address.
-                        metadata_uri: contractBook.metadata_uri,
+                        price: Number(contractBook.price),
+                        cover_uri: contractBook.cover_uri,
+                        book_uri: contractBook.book_uri,
+                        is_special: contractBook.is_special,
+                        total_supply: contractBook.total_supply,
+                        remaining_supply: contractBook.remaining_supply,
+                        author_address: contractBook.author_address,
+                        metadata_uri: "", // Not available in this contract version
                     });
                 }
             } catch (e) {

@@ -69,10 +69,11 @@ export default function UploadBookPage() {
             console.log("Book URL:", bookUrl);
 
             // Convert price to stroops (assuming 7 decimals from XLM)
+            // Convert price to stroops (assuming 7 decimals from XLM)
             const client = new Client({
-                networkPassphrase: "Test SDF Network ; September 2015",
-                contractId: "CB2PQKPGTZFWS7K76KVFXO6556DYJQDOUZ4AHCAZRH6MURBCZJAC2WJE",
-                rpcUrl: "https://soroban-testnet.stellar.org",
+                networkPassphrase: process.env.NEXT_PUBLIC_NETWORK_PASSPHRASE!,
+                contractId: process.env.NEXT_PUBLIC_CONTRACT_ID!,
+                rpcUrl: process.env.NEXT_PUBLIC_RPC_URL!,
                 publicKey: address,
             });
 
@@ -96,7 +97,7 @@ export default function UploadBookPage() {
             const { result } = await tx.signAndSend({
                 signTransaction: async (xdr: string) => {
                     const { signedTxXdr } = await signTransaction(xdr, {
-                        networkPassphrase: "Test SDF Network ; September 2015",
+                        networkPassphrase: process.env.NEXT_PUBLIC_NETWORK_PASSPHRASE!,
                     });
                     return { signedTxXdr };
                 },

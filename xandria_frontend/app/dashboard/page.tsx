@@ -3,21 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import WalletConnect from "@/components/WalletConnect";
-import { Client } from "hello-world-contract";
-
-// Define strict type based on contract
-type Book = {
-    title: string;
-    author: string;
-    price: number;
-    cover_uri: string;
-    book_uri: string;
-    is_special: boolean;
-    total_supply: number;
-    remaining_supply: number;
-    author_address: string;
-    metadata_uri: string;
-};
+import { Client, Book } from "hello-world-contract";
 
 export default function DashboardPage() {
     const [books, setBooks] = useState<{ id: number; data: Book }[]>([]);
@@ -26,9 +12,9 @@ export default function DashboardPage() {
     useEffect(() => {
         const fetchBooks = async () => {
             const client = new Client({
-                networkPassphrase: "Test SDF Network ; September 2015",
-                contractId: "CB2PQKPGTZFWS7K76KVFXO6556DYJQDOUZ4AHCAZRH6MURBCZJAC2WJE",
-                rpcUrl: "https://soroban-testnet.stellar.org",
+                networkPassphrase: process.env.NEXT_PUBLIC_NETWORK_PASSPHRASE!,
+                contractId: process.env.NEXT_PUBLIC_CONTRACT_ID!,
+                rpcUrl: process.env.NEXT_PUBLIC_RPC_URL!,
             });
 
             const loadedBooks: { id: number; data: Book }[] = [];
@@ -41,29 +27,9 @@ export default function DashboardPage() {
                 try {
                     const result = await client.get_book({ book_id: id });
                     if (result.result) {
-                        const contractBook = result.result;
-                        let metadata: any = {};
-                        try {
-                            const res = await fetch(contractBook.metadata_uri);
-                            metadata = await res.json();
-                        } catch (err) {
-                            console.error(`Failed to fetch metadata for book ${id}:`, err);
-                        }
-
                         loadedBooks.push({
                             id,
-                            data: {
-                                title: contractBook.title,
-                                author: contractBook.author,
-                                price: contractBook.price, // u32 from contract
-                                cover_uri: metadata.cover_uri || "",
-                                book_uri: metadata.book_uri || "",
-                                is_special: metadata.is_special || false,
-                                total_supply: metadata.supply || 0,
-                                remaining_supply: 0,
-                                author_address: contractBook.author,
-                                metadata_uri: contractBook.metadata_uri
-                            }
+                            data: result.result
                         });
                         id++;
                     } else {
