@@ -119,8 +119,21 @@ export const useStore = create<AppStore>()(
                   }
                 }
 
+                if (id === 1 || id === 2) {
+                  console.log(`[Debug] Book ${id} Raw Contract Data:`, cb);
+                  console.log(`[Debug] Book ${id} Resolved URIs:`, { coverUri, bookUri });
+                }
+
                 const enrichment = bookEnrichment[id] || {};
                 const remainingSupply = Number(cb.remaining_supply);
+
+                // If we have a valid bookUri (EPUB/PDF), we should NOT use hardcoded chapters from enrichment
+                // This prevents "1984" content appearing for user uploads that have ID 2 but are different books
+                const chapters = bookUri ? [] : (enrichment.chapters || []);
+
+                if (bookUri && enrichment.chapters?.length) {
+                  console.log(`[Debug] Book ${id} has bookUri, ignoring hardcoded chapters.`);
+                }
 
                 loadedBooks.push({
                   id,
@@ -138,7 +151,7 @@ export const useStore = create<AppStore>()(
                   rating: enrichment.rating || 4,
                   votes: enrichment.votes || 0,
                   genre: enrichment.genre || "Literature",
-                  chapters: enrichment.chapters || [],
+                  chapters: chapters,
                   aiSummary: enrichment.aiSummary || "",
                 });
                 id++;

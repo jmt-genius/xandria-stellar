@@ -10,6 +10,8 @@ type BookEnrichment = {
 };
 
 export const bookEnrichment: Record<number, BookEnrichment> = {
+  // Hardcoded books commented out to prioritize blockchain data
+  /*
   1: {
     description:
       "A portrait of the Jazz Age in all of its decadence and excess, Gatsby captured a moment in American history.",
@@ -187,6 +189,7 @@ export const bookEnrichment: Record<number, BookEnrichment> = {
       },
     ],
   },
+  */
 };
 
 export const allGenres = [

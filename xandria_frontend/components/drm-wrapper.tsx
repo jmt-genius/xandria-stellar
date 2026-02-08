@@ -15,6 +15,8 @@ export default function DrmWrapper({
   const [contentBlurred, setContentBlurred] = useState(false);
   const messageTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const blurTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Track whether meta+shift is being held (macOS screenshot combo)
+  const metaShiftHeldRef = useRef(false);
 
   const showProtectionMessage = useCallback(() => {
     setShowMessage(true);
@@ -23,7 +25,6 @@ export default function DrmWrapper({
     onProtectionAttempt?.();
   }, [onProtectionAttempt]);
 
-  // Temporarily blur content (used for screenshot detection)
   const blurContent = useCallback((durationMs = 1000) => {
     setContentBlurred(true);
     if (blurTimerRef.current) clearTimeout(blurTimerRef.current);
@@ -52,7 +53,7 @@ export default function DrmWrapper({
         return;
       }
 
-      // Block DevTools shortcuts: F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+Shift+C, Ctrl+U
+      // Block DevTools: F12, Ctrl+Shift+I/J/C, Ctrl+U
       if (e.key === "F12") {
         e.preventDefault();
         showProtectionMessage();
@@ -74,7 +75,8 @@ export default function DrmWrapper({
       }
 
       // === SCREENSHOT KEY DETECTION ===
-      // PrintScreen key
+
+      // PrintScreen (Windows/Linux — browser receives this event)
       if (e.key === "PrintScreen") {
         e.preventDefault();
         blurContent(1500);
@@ -82,7 +84,7 @@ export default function DrmWrapper({
         return;
       }
 
-      // Windows: Win+Shift+S (Snipping Tool) - detect Shift+S with Meta
+      // Windows: Win+Shift+S (Snipping Tool)
       if (e.metaKey && e.shiftKey && key === "s") {
         e.preventDefault();
         blurContent(1500);
@@ -90,7 +92,20 @@ export default function DrmWrapper({
         return;
       }
 
-      // macOS: Cmd+Shift+3 (full screenshot), Cmd+Shift+4 (area), Cmd+Shift+5 (capture panel)
+      // === macOS SCREENSHOT DETECTION ===
+      // On macOS, Cmd+Shift+3/4/5 are intercepted by the OS before the browser
+      // gets the "3"/"4"/"5" keydown event. The browser DOES receive the keydown
+      // for Meta and Shift individually. So we detect when both Meta and Shift
+      // are held simultaneously and preemptively blur the content.
+      // This catches all three macOS screenshot combos.
+      if (e.metaKey && e.shiftKey && !metaShiftHeldRef.current) {
+        metaShiftHeldRef.current = true;
+        blurContent(2000);
+        showProtectionMessage();
+        return;
+      }
+
+      // Also catch any Cmd+Shift+3/4/5 that DO arrive (some browser versions)
       if (
         e.metaKey &&
         e.shiftKey &&
@@ -101,14 +116,21 @@ export default function DrmWrapper({
         showProtectionMessage();
         return;
       }
+    };
 
-      // Linux: common screenshot shortcuts
-      // Super+PrintScreen, Shift+PrintScreen, Alt+PrintScreen
-      // Also common: Ctrl+Shift+PrintScreen for some tools
+    const handleKeyUp = (e: KeyboardEvent) => {
+      // Reset meta+shift tracking when either key is released
+      if (e.key === "Meta" || e.key === "Shift") {
+        metaShiftHeldRef.current = false;
+      }
     };
 
     document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
+    document.addEventListener("keyup", handleKeyUp);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("keyup", handleKeyUp);
+    };
   }, [showProtectionMessage, blurContent]);
 
   // === CONTEXT MENU BLOCK ===
@@ -123,13 +145,11 @@ export default function DrmWrapper({
   }, [showProtectionMessage]);
 
   // === VISIBILITY CHANGE DETECTION ===
-  // Blur content when tab/window loses focus (prevents clean screen captures)
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.hidden) {
         setContentBlurred(true);
       } else {
-        // Small delay before unblurring to catch quick alt-tab screenshots
         setTimeout(() => setContentBlurred(false), 300);
       }
     };
@@ -155,13 +175,8 @@ export default function DrmWrapper({
 
   // === DRAG PREVENTION ===
   useEffect(() => {
-    const handleDragStart = (e: DragEvent) => {
-      e.preventDefault();
-    };
-
-    const handleDrop = (e: DragEvent) => {
-      e.preventDefault();
-    };
+    const handleDragStart = (e: DragEvent) => e.preventDefault();
+    const handleDrop = (e: DragEvent) => e.preventDefault();
 
     document.addEventListener("dragstart", handleDragStart);
     document.addEventListener("drop", handleDrop);
@@ -217,7 +232,7 @@ export default function DrmWrapper({
       }}
       onDragStart={(e) => e.preventDefault()}
     >
-      {/* Content blur overlay (appears on screenshot attempts, visibility loss, devtools) */}
+      {/* Content blur overlay */}
       {contentBlurred && (
         <div
           className="fixed inset-0 z-[90] pointer-events-none"
@@ -262,7 +277,7 @@ export default function DrmWrapper({
         </div>
       )}
 
-      {/* Print protection + additional CSS hardening */}
+      {/* Print protection + CSS hardening */}
       <style jsx global>{`
         @media print {
           body * {
@@ -278,14 +293,12 @@ export default function DrmWrapper({
           }
         }
 
-        /* Prevent image dragging globally in the reader */
         img {
           -webkit-user-drag: none;
           user-drag: none;
           pointer-events: none;
         }
 
-        /* Prevent text highlight styling */
         ::selection {
           background: transparent;
           color: inherit;

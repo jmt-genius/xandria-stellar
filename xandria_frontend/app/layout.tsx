@@ -39,6 +39,7 @@ export default function RootLayout({
     <html lang="en">
       <body
         className={`${cormorant.variable} ${inter.variable} ${ebGaramond.variable} ${geistMono.variable} antialiased`}
+        suppressHydrationWarning
       >
         {children}
       </body>
