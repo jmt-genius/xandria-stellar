@@ -113,3 +113,18 @@ export type ReadingProfile = {
   topConcepts: string[];
   recentIdeas: string[];
 };
+
+export type Highlight = {
+  id: string;
+  bookId: number;
+  ownerAddress: string;
+  text: string;
+  color: string;
+  createdAt: string;
+  chapterIndex: number;
+  pageInChapter: number;
+  startOffset: number;
+  endOffset: number;
+  startPath: string;
+  endPath: string;
+};

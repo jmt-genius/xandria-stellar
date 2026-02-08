@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { Book, OwnedBook, AiMessage, Notification, ReadingSession, ReadingProfile, ShelfMode, AiPaneMode, InfoModalType } from "@/types";
+import type { Book, OwnedBook, AiMessage, Notification, ReadingSession, ReadingProfile, ShelfMode, AiPaneMode, InfoModalType, Highlight } from "@/types";
 import { getContractClient, stroopsToXlm } from "@/lib/stellar";
 import { XLM_TOKEN_ADDRESS, NETWORK_PASSPHRASE } from "@/lib/constants";
 import { bookEnrichment } from "@/data/books";
@@ -66,6 +66,12 @@ interface AppStore {
   // Info modals
   activeInfoModal: InfoModalType | null;
   setActiveInfoModal: (modal: InfoModalType | null) => void;
+
+  // Highlights (persisted)
+  highlights: Highlight[];
+  addHighlight: (h: Highlight) => void;
+  removeHighlight: (id: string) => void;
+  getHighlightsForPage: (bookId: number, chapterIndex: number, pageInChapter: number) => Highlight[];
 
   // Sound preference (persisted)
   soundEnabled: boolean;
@@ -457,6 +463,22 @@ export const useStore = create<AppStore>()(
       activeInfoModal: null,
       setActiveInfoModal: (modal) => set({ activeInfoModal: modal }),
 
+      // Highlights
+      highlights: [],
+      addHighlight: (h) => set({ highlights: [...get().highlights, h] }),
+      removeHighlight: (id) => set({ highlights: get().highlights.filter((h) => h.id !== id) }),
+      getHighlightsForPage: (bookId, chapterIndex, pageInChapter) => {
+        const address = get().walletAddress;
+        if (!address) return [];
+        return get().highlights.filter(
+          (h) =>
+            h.bookId === bookId &&
+            h.ownerAddress === address &&
+            h.chapterIndex === chapterIndex &&
+            h.pageInChapter === pageInChapter
+        );
+      },
+
       // Sound preference
       soundEnabled: true,
       toggleSound: () => set({ soundEnabled: !get().soundEnabled }),
@@ -468,6 +490,7 @@ export const useStore = create<AppStore>()(
         currentPage: state.currentPage,
         readingSessions: state.readingSessions,
         shelfMode: state.shelfMode,
+        highlights: state.highlights,
         soundEnabled: state.soundEnabled,
       }),
       onRehydrateStorage: () => (state) => {

@@ -216,10 +216,8 @@ export default function DrmWrapper({
 
   return (
     <div
-      className="relative select-none"
+      className="relative"
       style={{
-        WebkitUserSelect: "none",
-        userSelect: "none",
         WebkitTouchCallout: "none",
       }}
       onCopy={(e) => {
@@ -300,11 +298,11 @@ export default function DrmWrapper({
         }
 
         ::selection {
-          background: transparent;
+          background: rgba(217, 169, 99, 0.3);
           color: inherit;
         }
         ::-moz-selection {
-          background: transparent;
+          background: rgba(217, 169, 99, 0.3);
           color: inherit;
         }
       `}</style>

@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { isConnected, requestAccess } from "@stellar/freighter-api";
+import { useState, useEffect } from "react";
+import { isConnected, getAddress, requestAccess } from "@stellar/freighter-api";
 import { useStore } from "@/stores/useStore";
 import { truncateAddress } from "@/lib/stellar";
+
+const DISCONNECTED_KEY = "xandria-wallet-disconnected";
 
 export default function WalletIndicator() {
   const setWalletAddress = useStore((s) => s.setWalletAddress);
@@ -11,42 +13,41 @@ export default function WalletIndicator() {
   const [error, setError] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
-  const checkedRef = useRef(false);
 
-  // Check existing connection on mount (once)
+  // Auto-reconnect on mount only if the user hasn't explicitly disconnected
   useEffect(() => {
-    if (checkedRef.current) return;
-    checkedRef.current = true;
-
+    let cancelled = false;
     (async () => {
       try {
+        // Skip auto-connect if user explicitly disconnected
+        if (sessionStorage.getItem(DISCONNECTED_KEY)) return;
+
         const { isConnected: connected } = await isConnected();
-        if (connected) {
-          const { address } = await requestAccess();
-          if (address) {
-            setPublicKey(address);
-            setWalletAddress(address);
-          }
+        if (!connected || cancelled) return;
+        const { address, error: addrError } = await getAddress();
+        if (cancelled) return;
+        if (address && !addrError) {
+          setPublicKey(address);
+          setWalletAddress(address);
         }
-      } catch (err) {
-        console.error("Error checking wallet connection:", err);
+      } catch {
+        // Freighter not available or not authorized — silent on mount
       }
     })();
+    return () => { cancelled = true; };
   }, [setWalletAddress]);
 
   const handleConnect = async () => {
     setError(null);
     setConnecting(true);
     try {
-      const { isConnected: connected } = await isConnected();
-      if (!connected) {
-        setError("Freighter wallet not detected");
-        setConnecting(false);
-        return;
-      }
+      // Clear the disconnected flag so auto-connect works on future loads
+      sessionStorage.removeItem(DISCONNECTED_KEY);
+
+      // requestAccess triggers the Freighter popup for user approval
       const response = await requestAccess();
       if (response.error) {
-        setError(response.error);
+        setError(typeof response.error === "string" ? response.error : "Connection rejected.");
         setConnecting(false);
         return;
       }
@@ -54,11 +55,11 @@ export default function WalletIndicator() {
         setPublicKey(response.address);
         setWalletAddress(response.address);
       } else {
-        setError("User denied access.");
+        setError("No address returned. Is Freighter installed?");
       }
     } catch (err) {
       console.error("Error connecting wallet:", err);
-      setError("Failed to connect wallet.");
+      setError("Freighter wallet not detected. Please install the extension.");
     } finally {
       setConnecting(false);
     }
@@ -68,6 +69,8 @@ export default function WalletIndicator() {
     setPublicKey(null);
     setWalletAddress(null);
     setShowDropdown(false);
+    // Mark as explicitly disconnected so auto-connect is skipped until user reconnects
+    sessionStorage.setItem(DISCONNECTED_KEY, "1");
   };
 
   if (!publicKey) {

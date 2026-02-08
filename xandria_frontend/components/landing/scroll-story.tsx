@@ -1,70 +1,99 @@
 "use client";
 
-import StoryStep from "./story-step";
+import { motion, useScroll, useTransform } from "framer-motion";
+import { useRef } from "react";
 
 const steps = [
   {
-    heading: "Discover",
-    body: "Browse a curated marketplace of books that matter. No algorithms — just editorial care and reader conviction.",
-    icon: (
-      <svg width="32" height="32" viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="1.5">
-        <circle cx="14" cy="14" r="10" />
-        <line x1="21" y1="21" x2="28" y2="28" />
-      </svg>
-    ),
+    quote: "When you buy a book on Kindle, you own a license. Amazon can revoke it.",
+    source: "Terms of Service, Section 3",
+    emphasis: "You don't own anything.",
   },
   {
-    heading: "Own",
-    body: "When you buy a book, you own it on-chain. Not a license. Not a rental. A real asset with provable provenance.",
-    icon: (
-      <svg width="32" height="32" viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="1.5">
-        <rect x="4" y="8" width="24" height="18" rx="2" />
-        <path d="M4 14h24" />
-        <circle cx="16" cy="22" r="2" />
-      </svg>
-    ),
+    quote: "85% of authors earn less than $1,000 per year from their writing.",
+    source: "Authors Guild Survey",
+    emphasis: "Creators are invisible.",
   },
   {
-    heading: "Read",
-    body: "A distraction-free reader with AI that helps you think — not just consume. Summarize, argue, find counterpoints.",
-    icon: (
-      <svg width="32" height="32" viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="1.5">
-        <path d="M4 4v24l12-6 12 6V4H4z" />
-        <line x1="10" y1="10" x2="22" y2="10" />
-        <line x1="10" y1="14" x2="18" y2="14" />
-      </svg>
-    ),
-  },
-  {
-    heading: "Lend",
-    body: "Share your books with others without giving them up. Lending creates trust networks, not piracy.",
-    comingSoon: true,
-    icon: (
-      <svg width="32" height="32" viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="1.5">
-        <path d="M8 16h16" />
-        <path d="M20 10l6 6-6 6" />
-        <circle cx="6" cy="16" r="2" />
-      </svg>
-    ),
-  },
-  {
-    heading: "Pass On",
-    body: "Resell, gift, or bequeath your books. Digital ownership that outlasts the platform.",
-    comingSoon: true,
-    icon: (
-      <svg width="32" height="32" viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="1.5">
-        <path d="M6 26L16 6l10 20" />
-        <line x1="10" y1="18" x2="22" y2="18" />
-      </svg>
-    ),
+    quote: "Xandria records every purchase on the Stellar blockchain. 5 seconds. $0.00001.",
+    source: null,
+    emphasis: "We built something different.",
+    isAccent: true,
   },
 ];
 
+function StoryFrame({
+  quote,
+  source,
+  emphasis,
+  isAccent,
+  index,
+}: {
+  quote: string;
+  source: string | null;
+  emphasis: string;
+  isAccent?: boolean;
+  index: number;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const { scrollYProgress } = useScroll({
+    target: ref,
+    offset: ["start end", "end start"],
+  });
+
+  const opacity = useTransform(scrollYProgress, [0.15, 0.35, 0.65, 0.85], [0, 1, 1, 0]);
+  const y = useTransform(scrollYProgress, [0.15, 0.35, 0.65, 0.85], [40, 0, 0, -40]);
+  const lineScale = useTransform(scrollYProgress, [0.2, 0.4], [0, 1]);
+
+  return (
+    <div ref={ref} className="h-[80vh] md:h-[85vh] flex items-center justify-center px-6">
+      <motion.div
+        style={{ opacity, y }}
+        className="max-w-2xl text-center"
+      >
+        {/* Step indicator */}
+        <span className="font-mono text-[10px] tracking-[0.3em] uppercase text-text-muted block mb-8">
+          {String(index + 1).padStart(2, "0")}
+        </span>
+
+        {/* Quote */}
+        <p className={`font-display text-[clamp(1.3rem,3.5vw,2rem)] leading-[1.4] tracking-wide mb-6 ${
+          isAccent ? "text-accent" : "text-text-primary"
+        }`}>
+          &ldquo;{quote}&rdquo;
+        </p>
+
+        {/* Source */}
+        {source && (
+          <p className="font-mono text-[10px] tracking-[0.15em] uppercase text-text-muted mb-8">
+            &mdash; {source}
+          </p>
+        )}
+
+        {/* Emphasis line */}
+        <motion.div
+          style={{ scaleX: lineScale }}
+          className="mx-auto w-12 h-[1px] bg-accent mb-6 origin-center"
+        />
+
+        <p className={`font-body text-sm tracking-wide ${
+          isAccent ? "text-accent/80" : "text-text-secondary"
+        }`}>
+          {emphasis}
+        </p>
+      </motion.div>
+    </div>
+  );
+}
+
 export default function ScrollStory() {
   return (
-    <section>
-      {steps.map((step) => (
-        <StoryStep key={step.heading} {...step} />
+    <section className="relative">
+      {/* Vertical line threading through */}
+      <div className="absolute left-1/2 top-0 bottom-0 w-[1px] -translate-x-1/2 bg-border/30 hidden md:block" />
+
+      {steps.map((step, i) => (
+        <StoryFrame key={i} {...step} index={i} />
       ))}
     </section>
   );

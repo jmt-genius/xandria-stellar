@@ -318,6 +318,9 @@ export default function ReaderPage({
                 chapterTitle={currentPageData.chapterTitle}
                 pageIndex={pageIdx}
                 direction={direction}
+                bookId={bookId}
+                chapterIndex={currentPageData.chapterIndex}
+                pageInChapter={currentPageData.pageInChapter}
               />
 
               {/* Right click zone */}
