@@ -5,6 +5,7 @@ A blockchain-powered platform for authors to publish and sell digital books as N
 ## Live Demo
 
 **Frontend:** `https://www.xandria.store/` 
+
 **Contract Address:** `CCK3XSWGFOAH2K6OLQYFDHS2OR62TMZ3YESFAF2LDD7RS76I6CPO7GKK`  
 **Network:** Stellar Testnet
 
