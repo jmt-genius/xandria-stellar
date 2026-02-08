@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="696" height="1040" viewBox="0 0 696 1040">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono');
+    text {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 8px;
+    }
+  </style>
+  <rect width="100%" height="100%" fill="#0A0A08"/>
+  <g>
+    <text x="312" y="222.4" fill="rgb(24,19,19)">.</text>
+    <text x="316.8" y="222.4" fill="rgb(54,52,47)">:</text>
+    <text x="321.59999999999997" y="222.4" fill="rgb(126,122,115)">-</text>
+    <text x="326.4" y="222.4" fill="rgb(68,63,61)">:</text>
+    <text x="331.2" y="222.4" fill="rgb(40,40,38)">:</text>
+    <text x="336" y="222.4" fill="rgb(0,0,0)">.</text>
+    <text x="292.8" y="230.4" fill="rgb(0,0,0)">.</text>
+    <text x="297.59999999999997" y="230.4" fill="rgb(70,66,55)">:</text>
+    <text x="302.4" y="230.4" fill="rgb(122,113,104)">=</text>
+    <text x="307.2" y="230.4" fill="rgb(119,112,101)">-</text>
+    <text x="312" y="230.4" fill="rgb(137,130,118)">=</text>
+    <text x="316.8" y="230.4" fill="rgb(119,113,101)">=</text>
+    <text x="321.59999999999997" y="230.4" fill="rgb(123,117,105)">=</text>
+    <text x="326.4" y="230.4" fill="rgb(135,127,117)">+</text>
+    <text x="331.2" y="230.4" fill="rgb(149,142,132)">+</text>
+    <text x="336" y="230.4" fill="rgb(148,140,129)">+</text>
+    <text x="340.8" y="230.4" fill="rgb(140,133,120)">+</text>
+    <text x="345.59999999999997" y="230.4" fill="rgb(111,104,86)">=</text>
+    <text x="350.4" y="230.4" fill="rgb(28,24,24)">.</text>
+    <text x="278.4" y="238.4" fill="rgb(0,0,0)">.</text>
+    <text x="283.2" y="238.4" fill="rgb(111,99,93)">-</text>
+    <text x="288" y="238.4" fill="rgb(140,133,124)">=</text>
+    <text x="292.8" y="238.4" fill="rgb(132,125,116)">=</text>
+    <text x="297.59999999999997" y="238.4" fill="rgb(139,132,122)">=</text>
+    <text x="302.4" y="238.4" fill="rgb(75,68,58)">-</text>
+    <text x="307.2" y="238.4" fill="rgb(109,103,93)">-</text>
+    <text x="312" y="238.4" fill="rgb(118,114,103)">=</text>
+    <text x="316.8" y="238.4" fill="rgb(140,137,126)">+</text>
+    <text x="321.59999999999997" y="238.4" fill="rgb(136,134,122)">+</text>
+    <text x="326.4" y="238.4" fill="rgb(132,130,118)">+</text>
+    <text x="331.2" y="238.4" fill="rgb(142,139,127)">+</text>
+    <text x="336" y="238.4" fill="rgb(149,145,134)">+</text>
+    <text x="340.8" y="238.4" fill="rgb(150,144,134)">+</text>
+    <text x="345.59999999999997" y="238.4" fill="rgb(145,137,129)">+</text>
+    <text x="350.4" y="238.4" fill="rgb(134,126,118)">+</text>
+    <text x="355.2" y="238.4" fill="rgb(128,119,107)">=</text>
+    <text x="360" y="238.4" fill="rgb(0,0,0)">.</text>
+    <text x="268.8" y="246.4" fill="rgb(0,0,0)">.</text>
+    <text x="273.59999999999997" y="246.4" fill="rgb(113,111,109)">=</text>
+    <text x="278.4" y="246.4" fill="rgb(144,136,128)">+</text>
+    <text x="283.2" y="246.4" fill="rgb(134,128,122)">=</text>
+    <text x="288" y="246.4" fill="rgb(98,94,87)">-</text>
+    <text x="292.8" y="246.4" fill="rgb(123,122,115)">=</text>
+    <text x="297.59999999999997" y="246.4" fill="rgb(120,119,108)">-</text>
+    <text x="302.4" y="246.4" fill="rgb(128,126,114)">=</text>
+    <text x="307.2" y="246.4" fill="rgb(133,131,120)">=</text>
+    <text x="312" y="246.4" fill="rgb(135,132,122)">=</text>
+    <text x="316.8" y="246.4" fill="rgb(115,113,102)">+</text>
+    <text x="321.59999999999997" y="246.4" fill="rgb(124,121,110)">+</text>
+    <text x="326.4" y="246.4" fill="rgb(137,135,122)">+</text>
+    <text x="331.2" y="246.4" fill="rgb(138,136,123)">+</text>
+    <text x="336" y="246.4" fill="rgb(130,128,116)">+</text>
+    <text x="340.8" y="246.4" fill="rgb(132,132,121)">+</text>
+    <text x="345.59999999999997" y="246.4" fill="rgb(142,141,131)">+</text>
+    <text x="350.4" y="246.4" fill="rgb(147,145,135)">+</text>
+    <text x="355.2" y="246.4" fill="rgb(146,137,128)">+</text>
+    <text x="360" y="246.4" fill="rgb(132,127,114)">=</text>
+    <text x="364.8" y="246.4" fill="rgb(14,14,14)">:</text>
+    <text x="393.59999999999997" y="246.4" fill="rgb(49,43,40)">:</text>
+    <text x="398.4" y="246.4" fill="rgb(99,97,91)">:</text>
+    <text x="403.2" y="246.4" fill="rgb(31,26,26)">:</text>
+  </g>
+</svg>

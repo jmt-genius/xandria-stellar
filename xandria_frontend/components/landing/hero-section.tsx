@@ -32,7 +32,7 @@ export default function HeroSection() {
       <div 
         className="absolute right-0 top-1/2 -translate-y-1/2 w-[50vw] h-[80vh] bg-contain bg-right bg-no-repeat opacity-[0.15]"
         style={{
-          backgroundImage: `url('/hero-ascii-art.png')`,
+          backgroundImage: `url('/hero-ascii-art.svg')`,
           mixBlendMode: 'screen',
         }}
       />
@@ -125,7 +125,7 @@ export default function HeroSection() {
               <div 
                 className="absolute inset-0 bg-contain bg-center bg-no-repeat"
                 style={{
-                  backgroundImage: `url('/hero-ascii-art.png')`,
+                  backgroundImage: `url('/hero-ascii-art.svg')`,
                   filter: 'sepia(30%) saturate(150%) brightness(0.9)',
                 }}
               />
