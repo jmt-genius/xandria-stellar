@@ -52,3 +52,64 @@ export type Notification = {
   subtitle: string;
   type: "purchase" | "info" | "error";
 };
+
+export type BookMetadata = {
+  wordCount: number;
+  readingTimeMinutes: number;
+  tone: string;
+  difficulty: "Accessible" | "Moderate" | "Challenging";
+  concepts: string[];
+  whyPeopleRead: string[];
+  commonHighlights: { quote: string; count: number }[];
+  socialProof: string;
+  editorialTags: string[];
+};
+
+export type BookReview = {
+  id: string;
+  bookId: number;
+  reviewerName: string;
+  content: string;
+  conceptTags: string[];
+  timestamp: string;
+};
+
+export type ReadingSession = {
+  id: string;
+  bookId: number;
+  startedAt: string;
+  endedAt: string | null;
+  pagesRead: number;
+  durationMinutes: number;
+  ideasExtracted: string[];
+};
+
+export type AuthorProfile = {
+  id: string;
+  address: string;
+  name: string;
+  bio: string;
+  fields: string[];
+  publishedBookIds: number[];
+};
+
+export type CuratedCollection = {
+  id: string;
+  title: string;
+  subtitle: string;
+  curatorName: string;
+  description: string;
+  bookIds: number[];
+};
+
+export type ShelfMode = "chronological" | "theme" | "emotional";
+export type AiPaneMode = "explain" | "summarize" | "argue" | "counterpoints";
+export type InfoModalType = "drm" | "ownership" | "kindle-comparison";
+
+export type ReadingProfile = {
+  totalReadingTimeMinutes: number;
+  weeklyReadingTimeMinutes: number;
+  topGenres: string[];
+  topConcepts: string[];
+  recentIdeas: string[];
+};

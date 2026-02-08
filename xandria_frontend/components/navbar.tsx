@@ -1,22 +1,33 @@
 "use client";
 
+import { useMemo } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useStore } from "@/stores/useStore";
 import WalletIndicator from "./wallet-indicator";
 
 export default function Navbar() {
   const pathname = usePathname();
+  const walletAddress = useStore((s) => s.walletAddress);
+  const ownedBooks = useStore((s) => s.ownedBooks);
+
+  const showHome = useMemo(() => {
+    if (!walletAddress) return false;
+    return ownedBooks.some((b) => b.ownerAddress === walletAddress);
+  }, [walletAddress, ownedBooks]);
 
   const links = [
+    ...(showHome ? [{ href: "/home", label: "HOME" }] : []),
     { href: "/marketplace", label: "MARKETPLACE" },
     { href: "/library", label: "LIBRARY" },
+    { href: "/collections", label: "COLLECTIONS" },
     { href: "/upload-book", label: "PUBLISH" },
   ];
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 h-16 flex items-center justify-between px-8 backdrop-blur-md bg-[#0A0A08]/80">
       <div className="flex items-center gap-12">
-        <Link href="/marketplace" className="font-display text-2xl text-text-primary tracking-wide">
+        <Link href="/" className="font-display text-2xl text-text-primary tracking-wide">
           Xandria
         </Link>
         <div className="flex items-center gap-8">

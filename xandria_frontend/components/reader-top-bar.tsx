@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Book, OwnedBook } from "@/types";
@@ -13,6 +13,7 @@ export default function ReaderTopBar({
   totalPages,
   onToggleAi,
   aiOpen,
+  extraActions,
 }: {
   book: Book;
   ownedBook: OwnedBook;
@@ -20,21 +21,22 @@ export default function ReaderTopBar({
   totalPages: number;
   onToggleAi: () => void;
   aiOpen: boolean;
+  extraActions?: React.ReactNode;
 }) {
   const [visible, setVisible] = useState(true);
-  const [hideTimer, setHideTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const resetTimer = useCallback(() => {
     setVisible(true);
-    if (hideTimer) clearTimeout(hideTimer);
-    const timer = setTimeout(() => setVisible(false), 3000);
-    setHideTimer(timer);
-  }, [hideTimer]);
+    if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    hideTimerRef.current = setTimeout(() => setVisible(false), 3000);
+  }, []);
 
   useEffect(() => {
-    const timer = setTimeout(() => setVisible(false), 3000);
-    setHideTimer(timer);
-    return () => clearTimeout(timer);
+    hideTimerRef.current = setTimeout(() => setVisible(false), 3000);
+    return () => {
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    };
   }, []);
 
   useEffect(() => {
@@ -43,7 +45,7 @@ export default function ReaderTopBar({
     };
     const handleTouch = () => resetTimer();
     window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("touchstart", handleTouch);
+    window.addEventListener("touchstart", handleTouch, { passive: true });
     return () => {
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("touchstart", handleTouch);
@@ -74,13 +76,13 @@ export default function ReaderTopBar({
               {book.title}
             </span>
             <div className="w-8 h-12 rounded overflow-hidden flex-shrink-0 relative">
-              {book.coverUri && (
+              {book.coverUri ? (
                 <img
                   src={book.coverUri}
                   alt=""
                   className="w-full h-full object-cover"
                 />
-              )}
+              ) : null}
             </div>
             <span className="font-mono text-[10px] text-text-muted">
               {formatMintNumber(ownedBook.mintNumber)}
@@ -89,6 +91,7 @@ export default function ReaderTopBar({
 
           {/* Right: Page + AI toggle */}
           <div className="flex items-center gap-4">
+            {extraActions}
             <span className="font-mono text-xs text-text-muted">
               {currentPage + 1} / {totalPages}
             </span>
@@ -101,7 +104,7 @@ export default function ReaderTopBar({
               style={
                 aiOpen
                   ? { filter: "drop-shadow(0 0 6px rgba(217,169,99,0.4))" }
-                  : {}
+                  : undefined
               }
             >
               &#10024;

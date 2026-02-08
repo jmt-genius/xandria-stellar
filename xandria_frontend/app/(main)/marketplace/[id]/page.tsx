@@ -1,31 +1,27 @@
 "use client";
 
-import { useEffect, useState, use } from "react";
+import { useEffect, useState, use, useMemo } from "react";
 import Link from "next/link";
 import { useStore } from "@/stores/useStore";
 import { getContractClient, stroopsToXlm } from "@/lib/stellar";
+import { formatPrice } from "@/lib/format";
 import { bookEnrichment } from "@/data/books";
-import PurchaseModal from "@/components/purchase-modal";
+import { bookMetadata } from "@/data/book-metadata";
+import { reviews as allReviews } from "@/data/reviews";
+import { authors } from "@/data/authors";
+import dynamic from "next/dynamic";
 import MintNumberOverlay from "@/components/mint-number-overlay";
+import RatingDots from "@/components/rating-dots";
+import BookCover from "@/components/book-cover";
+import MetadataBar from "@/components/book-detail/metadata-bar";
+import WhyPeopleRead from "@/components/book-detail/why-people-read";
+import CommonHighlights from "@/components/book-detail/common-highlights";
+import ReviewThread from "@/components/book-detail/review-thread";
 import type { Book } from "@/types";
 
-function RatingDots({ rating, votes }: { rating: number; votes: number }) {
-  return (
-    <div className="flex items-center gap-2">
-      <div className="flex gap-1">
-        {[1, 2, 3, 4, 5].map((i) => (
-          <span
-            key={i}
-            className={`w-2 h-2 rounded-full ${
-              i <= Math.round(rating) ? "bg-accent" : "bg-border"
-            }`}
-          />
-        ))}
-      </div>
-      <span className="text-text-muted text-xs">({votes})</span>
-    </div>
-  );
-}
+const PurchaseModal = dynamic(() => import("@/components/purchase-modal"), { ssr: false });
+const ReviewForm = dynamic(() => import("@/components/book-detail/review-form"), { ssr: false });
+const WhatOwnershipModal = dynamic(() => import("@/components/modals/what-ownership-modal"), { ssr: false });
 
 export default function BookDetailsPage({
   params,
@@ -40,6 +36,11 @@ export default function BookDetailsPage({
   const [loading, setLoading] = useState(true);
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
   const [showAiSummary, setShowAiSummary] = useState(false);
+  const [showOwnershipModal, setShowOwnershipModal] = useState(false);
+
+  const metadata = bookMetadata[bookId];
+  const bookReviews = useMemo(() => allReviews.filter((r) => r.bookId === bookId), [bookId]);
+  const author = useMemo(() => authors.find((a) => a.publishedBookIds.includes(bookId)), [bookId]);
 
   // Load the book data
   useEffect(() => {
@@ -63,9 +64,9 @@ export default function BookDetailsPage({
           if ((!coverUri || !bookUri) && (cb as any).metadata_uri) {
             try {
               const res = await fetch((cb as any).metadata_uri);
-              const metadata = await res.json();
-              coverUri = coverUri || metadata.cover_uri || "";
-              bookUri = bookUri || metadata.book_uri || "";
+              const meta = await res.json();
+              coverUri = coverUri || meta.cover_uri || "";
+              bookUri = bookUri || meta.book_uri || "";
             } catch {}
           }
           const enrichment = bookEnrichment[bookId] || {};
@@ -104,12 +105,10 @@ export default function BookDetailsPage({
     if (useStore.getState().isOwned(bookId)) return;
 
     const checkOwnership = async () => {
-      // Check if user is the author
       if (book.authorAddress === walletAddress) {
         useStore.getState().purchaseBook(bookId, 0, "author");
         return;
       }
-      // Check on-chain purchase
       try {
         const owned = await useStore.getState().checkOnChainOwnership(bookId);
         if (owned && !useStore.getState().isOwned(bookId)) {
@@ -166,19 +165,7 @@ export default function BookDetailsPage({
         {/* Left: Cover */}
         <div className="md:w-[40%]">
           <div className="relative aspect-[2/3] rounded-lg overflow-hidden shadow-[var(--shadow-cover)]">
-            {book.coverUri ? (
-              <img
-                src={book.coverUri}
-                alt={book.title}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full bg-surface-hover flex items-center justify-center">
-                <span className="font-display text-2xl text-text-muted text-center px-6">
-                  {book.title}
-                </span>
-              </div>
-            )}
+            <BookCover coverUri={book.coverUri} title={book.title} textSize="text-2xl" />
             {owned && ownedBook && (
               <MintNumberOverlay mintNumber={ownedBook.mintNumber} />
             )}
@@ -202,16 +189,30 @@ export default function BookDetailsPage({
             {book.title}
           </h1>
           <div className="border-t border-border mt-3 pt-3 mb-4">
-            <p className="font-body text-text-secondary">{book.author}</p>
+            {author ? (
+              <Link
+                href={`/author/${author.id}`}
+                className="font-body text-text-secondary hover:text-accent transition-colors"
+              >
+                {book.author}
+              </Link>
+            ) : (
+              <p className="font-body text-text-secondary">{book.author}</p>
+            )}
           </div>
+
+          {/* Metadata bar */}
+          {metadata && (
+            <div className="mb-4">
+              <MetadataBar metadata={metadata} />
+            </div>
+          )}
+
           <div className="mb-6">
-            <RatingDots rating={book.rating} votes={book.votes} />
+            <RatingDots rating={book.rating} votes={book.votes} dotSize="w-2 h-2" />
           </div>
           <p className="font-mono text-3xl text-accent mb-6">
-            {book.price % 1 === 0
-              ? Math.round(book.price)
-              : book.price.toFixed(2)}{" "}
-            XLM
+            {formatPrice(book.price)} XLM
           </p>
 
           {book.description && (
@@ -238,27 +239,48 @@ export default function BookDetailsPage({
             </div>
           )}
 
-          {owned ? (
-            <Link
-              href={`/library/${book.id}/read`}
-              className="inline-block py-3.5 px-10 bg-background border border-accent text-accent font-body font-medium text-sm transition-colors hover:bg-accent hover:text-background"
-            >
-              Read
-            </Link>
-          ) : isSoldOut ? (
-            <button
-              disabled
-              className="py-3.5 px-10 bg-surface text-text-muted font-body font-medium text-sm cursor-not-allowed"
-            >
-              Sold Out
-            </button>
-          ) : (
-            <button
-              onClick={() => setShowPurchaseModal(true)}
-              className="py-3.5 px-10 bg-accent text-background font-body font-medium text-sm transition-opacity hover:opacity-90"
-            >
-              Own This Book
-            </button>
+          <div className="flex items-center gap-3">
+            {owned ? (
+              <Link
+                href={`/library/${book.id}/read`}
+                className="inline-block py-3.5 px-10 bg-background border border-accent text-accent font-body font-medium text-sm transition-colors hover:bg-accent hover:text-background"
+              >
+                Read
+              </Link>
+            ) : isSoldOut ? (
+              <button
+                disabled
+                className="py-3.5 px-10 bg-surface text-text-muted font-body font-medium text-sm cursor-not-allowed"
+              >
+                Sold Out
+              </button>
+            ) : (
+              <button
+                onClick={() => setShowPurchaseModal(true)}
+                className="py-3.5 px-10 bg-accent text-background font-body font-medium text-sm transition-opacity hover:opacity-90"
+              >
+                Own This Book
+              </button>
+            )}
+            {!owned && !isSoldOut && (
+              <button
+                onClick={() => setShowOwnershipModal(true)}
+                className="w-7 h-7 rounded-full border border-border text-text-muted hover:text-text-primary hover:border-text-muted transition-colors flex items-center justify-center text-xs"
+                title="What does ownership mean?"
+              >
+                i
+              </button>
+            )}
+          </div>
+
+          {/* Why people read this */}
+          {metadata && (
+            <div className="mt-10 space-y-8">
+              <WhyPeopleRead reasons={metadata.whyPeopleRead} />
+              <CommonHighlights highlights={metadata.commonHighlights} />
+              <ReviewThread reviews={bookReviews} />
+              {owned && <ReviewForm bookId={bookId} />}
+            </div>
           )}
         </div>
       </div>
@@ -266,6 +288,11 @@ export default function BookDetailsPage({
       {showPurchaseModal && book && (
         <PurchaseModal book={book} onClose={() => setShowPurchaseModal(false)} />
       )}
+
+      <WhatOwnershipModal
+        open={showOwnershipModal}
+        onClose={() => setShowOwnershipModal(false)}
+      />
     </div>
   );
 }

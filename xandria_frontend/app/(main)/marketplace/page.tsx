@@ -5,11 +5,13 @@ import dynamic from "next/dynamic";
 import { useStore } from "@/stores/useStore";
 import BookCard from "@/components/book-card";
 import { allGenres } from "@/data/books";
+import { editorialRows } from "@/data/editorial";
 
 const CircularGallery = dynamic(() => import("@/components/circular-gallery"), {
   ssr: false,
   loading: () => null,
 });
+const EditorialRow = dynamic(() => import("@/components/marketplace/editorial-row"));
 
 function BookCardSkeleton() {
   return (
@@ -44,7 +46,7 @@ export default function MarketplacePage() {
   );
 
   const filteredBooks = useMemo(() => {
-    let result = [...books];
+    let result = books;
 
     if (selectedGenre !== "All") {
       result = result.filter((b) => b.genre === selectedGenre);
@@ -59,22 +61,34 @@ export default function MarketplacePage() {
       );
     }
 
-    switch (sortBy) {
-      case "price-low":
-        result.sort((a, b) => a.price - b.price);
-        break;
-      case "price-high":
-        result.sort((a, b) => b.price - a.price);
-        break;
-      case "newest":
-        result.sort((a, b) => b.id - a.id);
-        break;
-      default:
-        result.sort((a, b) => b.rating - a.rating);
-    }
+    const sortFn = (a: typeof books[0], b: typeof books[0]) => {
+      switch (sortBy) {
+        case "price-low": return a.price - b.price;
+        case "price-high": return b.price - a.price;
+        case "newest": return b.id - a.id;
+        default: return b.rating - a.rating;
+      }
+    };
 
-    return result;
+    return result.toSorted(sortFn);
   }, [books, selectedGenre, sortBy, search]);
+
+  // Build book index Map for O(1) lookups
+  const bookMap = useMemo(() => {
+    const map = new Map<number, typeof books[0]>();
+    for (const book of books) map.set(book.id, book);
+    return map;
+  }, [books]);
+
+  // Build editorial rows with real book data
+  const editorialRowsWithBooks = useMemo(() => {
+    return editorialRows.map((row) => ({
+      ...row,
+      books: row.bookIds
+        .map((id) => bookMap.get(id))
+        .filter(Boolean) as typeof books,
+    }));
+  }, [bookMap]);
 
   return (
     <div>
@@ -92,6 +106,20 @@ export default function MarketplacePage() {
       )}
 
       <div className="container mx-auto px-6 py-8">
+        {/* Editorial Rows */}
+        {!booksLoading && books.length > 0 && (
+          <div className="mb-12">
+            {editorialRowsWithBooks.map((row) => (
+              <EditorialRow
+                key={row.id}
+                title={row.title}
+                subtitle={row.subtitle}
+                books={row.books}
+              />
+            ))}
+          </div>
+        )}
+
         {/* Search */}
         <div className="flex flex-col gap-4 mb-8">
           <input

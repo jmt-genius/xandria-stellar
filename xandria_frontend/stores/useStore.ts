@@ -2,11 +2,13 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { Book, OwnedBook, AiMessage, Notification } from "@/types";
+import type { Book, OwnedBook, AiMessage, Notification, ReadingSession, ReadingProfile, ShelfMode, AiPaneMode, InfoModalType } from "@/types";
 import { getContractClient, stroopsToXlm } from "@/lib/stellar";
 import { XLM_TOKEN_ADDRESS, NETWORK_PASSPHRASE } from "@/lib/constants";
 import { bookEnrichment } from "@/data/books";
 import { getAiResponse } from "@/data/ai-responses";
+import { mockSessions } from "@/data/mock-sessions";
+import { bookMetadata } from "@/data/book-metadata";
 
 interface AppStore {
   // Hydration
@@ -45,6 +47,28 @@ interface AppStore {
   notifications: Notification[];
   addNotification: (notification: Notification) => void;
   dismissNotification: (id: string) => void;
+
+  // Reading sessions (persisted)
+  readingSessions: ReadingSession[];
+  startReadingSession: (bookId: number) => string;
+  endReadingSession: (sessionId: string, ideasExtracted: string[]) => void;
+  getReadingProfile: () => ReadingProfile;
+
+  // Shelf mode (persisted)
+  shelfMode: ShelfMode;
+  setShelfMode: (mode: ShelfMode) => void;
+
+  // AI pane mode
+  aiPaneMode: AiPaneMode;
+  setAiPaneMode: (mode: AiPaneMode) => void;
+
+  // Info modals
+  activeInfoModal: InfoModalType | null;
+  setActiveInfoModal: (modal: InfoModalType | null) => void;
+
+  // Sound preference (persisted)
+  soundEnabled: boolean;
+  toggleSound: () => void;
 }
 
 export const useStore = create<AppStore>()(
@@ -141,7 +165,12 @@ export const useStore = create<AppStore>()(
         }
       },
 
-      getBookById: (id) => get().books.find((b) => b.id === id),
+      getBookById: (id) => {
+        const books = get().books;
+        // For small arrays (< 50 books), linear search is fine.
+        // Avoids building a Map on every call.
+        return books.find((b) => b.id === id);
+      },
 
       // Owned books
       ownedBooks: [],
@@ -310,12 +339,118 @@ export const useStore = create<AppStore>()(
       dismissNotification: (id) => {
         set({ notifications: get().notifications.filter((n) => n.id !== id) });
       },
+
+      // Reading sessions
+      readingSessions: mockSessions,
+      startReadingSession: (bookId) => {
+        const id = `session-${Date.now()}`;
+        const session: ReadingSession = {
+          id,
+          bookId,
+          startedAt: new Date().toISOString(),
+          endedAt: null,
+          pagesRead: 0,
+          durationMinutes: 0,
+          ideasExtracted: [],
+        };
+        set({ readingSessions: [...get().readingSessions, session] });
+        return id;
+      },
+      endReadingSession: (sessionId, ideasExtracted) => {
+        set({
+          readingSessions: get().readingSessions.map((s) => {
+            if (s.id !== sessionId) return s;
+            const startTime = new Date(s.startedAt).getTime();
+            const endTime = Date.now();
+            return {
+              ...s,
+              endedAt: new Date(endTime).toISOString(),
+              durationMinutes: Math.round((endTime - startTime) / 60000),
+              ideasExtracted,
+            };
+          }),
+        });
+      },
+      getReadingProfile: () => {
+        const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+        const books = get().books;
+        // Build book lookup map for O(1) genre lookups
+        const bookGenreMap = new Map<number, string>();
+        for (const b of books) bookGenreMap.set(b.id, b.genre);
+
+        // Single pass: compute all aggregates at once
+        let totalMinutes = 0;
+        let weeklyMinutes = 0;
+        const conceptCounts: Record<string, number> = {};
+        const genreCounts: Record<string, number> = {};
+        const bookIdsSeen = new Set<number>();
+
+        const completedSessions = get().readingSessions.filter((s) => s.endedAt);
+
+        for (const s of completedSessions) {
+          totalMinutes += s.durationMinutes;
+          if (new Date(s.startedAt).getTime() > weekAgo) {
+            weeklyMinutes += s.durationMinutes;
+          }
+          for (const c of s.ideasExtracted) {
+            conceptCounts[c] = (conceptCounts[c] || 0) + 1;
+          }
+          if (!bookIdsSeen.has(s.bookId)) {
+            bookIdsSeen.add(s.bookId);
+            const genre = bookGenreMap.get(s.bookId);
+            if (genre) genreCounts[genre] = (genreCounts[genre] || 0) + 1;
+          }
+        }
+
+        const topConcepts = Object.entries(conceptCounts)
+          .toSorted(([, a], [, b]) => b - a)
+          .slice(0, 8)
+          .map(([c]) => c);
+
+        const topGenres = Object.entries(genreCounts)
+          .toSorted(([, a], [, b]) => b - a)
+          .slice(0, 3)
+          .map(([g]) => g);
+
+        const recentIdeas = completedSessions
+          .toSorted((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
+          .slice(0, 3)
+          .flatMap((s) => s.ideasExtracted)
+          .slice(0, 6);
+
+        return {
+          totalReadingTimeMinutes: totalMinutes,
+          weeklyReadingTimeMinutes: weeklyMinutes,
+          topGenres,
+          topConcepts,
+          recentIdeas,
+        };
+      },
+
+      // Shelf mode
+      shelfMode: "chronological" as ShelfMode,
+      setShelfMode: (mode) => set({ shelfMode: mode }),
+
+      // AI pane mode
+      aiPaneMode: "explain" as AiPaneMode,
+      setAiPaneMode: (mode) => set({ aiPaneMode: mode }),
+
+      // Info modals
+      activeInfoModal: null,
+      setActiveInfoModal: (modal) => set({ activeInfoModal: modal }),
+
+      // Sound preference
+      soundEnabled: true,
+      toggleSound: () => set({ soundEnabled: !get().soundEnabled }),
     }),
     {
       name: "xandria-store",
       partialize: (state) => ({
         ownedBooks: state.ownedBooks,
         currentPage: state.currentPage,
+        readingSessions: state.readingSessions,
+        shelfMode: state.shelfMode,
+        soundEnabled: state.soundEnabled,
       }),
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true);

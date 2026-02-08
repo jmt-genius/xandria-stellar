@@ -2,23 +2,15 @@
 
 import Link from "next/link";
 import type { Book } from "@/types";
-
-function RatingDots({ rating }: { rating: number }) {
-  return (
-    <div className="flex gap-1">
-      {[1, 2, 3, 4, 5].map((i) => (
-        <span
-          key={i}
-          className={`w-1.5 h-1.5 rounded-full ${
-            i <= Math.round(rating) ? "bg-accent" : "bg-border"
-          }`}
-        />
-      ))}
-    </div>
-  );
-}
+import { bookMetadata } from "@/data/book-metadata";
+import MetadataPills from "@/components/marketplace/metadata-pills";
+import RatingDots from "@/components/rating-dots";
+import BookCover from "@/components/book-cover";
+import { formatPrice } from "@/lib/format";
 
 export default function BookCard({ book }: { book: Book }) {
+  const metadata = bookMetadata[book.id];
+
   return (
     <Link href={`/marketplace/${book.id}`}>
       <div
@@ -29,20 +21,7 @@ export default function BookCard({ book }: { book: Book }) {
         <div className="relative aspect-[2/3] overflow-hidden rounded-t-lg">
           {/* Spine light hover effect */}
           <div className="absolute inset-y-0 left-0 w-[2px] bg-gradient-to-b from-transparent via-accent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10" />
-          {book.coverUri ? (
-            <img
-              src={book.coverUri}
-              alt={book.title}
-              className="w-full h-full object-cover"
-              loading="lazy"
-            />
-          ) : (
-            <div className="w-full h-full bg-surface-hover flex items-center justify-center">
-              <span className="font-display text-lg text-text-muted text-center px-4">
-                {book.title}
-              </span>
-            </div>
-          )}
+          <BookCover coverUri={book.coverUri} title={book.title} />
         </div>
         <div className="p-4">
           <h3 className="font-display text-lg text-text-primary truncate leading-tight">
@@ -51,15 +30,23 @@ export default function BookCard({ book }: { book: Book }) {
           <p className="font-body text-sm text-text-secondary mt-1 truncate">
             {book.author}
           </p>
+          {metadata && (
+            <p className="font-body text-[11px] text-text-muted mt-1 truncate">
+              {metadata.socialProof}
+            </p>
+          )}
           <div className="flex items-center justify-between mt-3">
             <span className="font-mono text-sm text-accent">
-              {book.price % 1 === 0
-                ? Math.round(book.price)
-                : book.price.toFixed(2)}{" "}
+              {formatPrice(book.price)}{" "}
               <span className="text-text-muted text-xs">XLM</span>
             </span>
             <RatingDots rating={book.rating} />
           </div>
+          {metadata && (
+            <div className="mt-2">
+              <MetadataPills metadata={metadata} />
+            </div>
+          )}
         </div>
       </div>
     </Link>

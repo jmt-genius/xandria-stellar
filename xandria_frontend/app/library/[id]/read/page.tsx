@@ -1,13 +1,20 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo, use } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef, use } from "react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
+import { AnimatePresence } from "framer-motion";
 import { useStore } from "@/stores/useStore";
+import { bookMetadata } from "@/data/book-metadata";
 import DrmWrapper from "@/components/drm-wrapper";
 import ReaderTopBar from "@/components/reader-top-bar";
 import ReaderContent from "@/components/reader-content";
 import ProgressBar from "@/components/progress-bar";
-import AiPanel from "@/components/ai-panel";
+import EndSessionButton from "@/components/reader/end-session-button";
+
+const AiPanel = dynamic(() => import("@/components/ai-panel"), { ssr: false });
+const SessionSummary = dynamic(() => import("@/components/reader/session-summary"), { ssr: false });
+const WhyDrmModal = dynamic(() => import("@/components/modals/why-drm-modal"), { ssr: false });
 
 export default function ReaderPage({
   params,
@@ -18,11 +25,15 @@ export default function ReaderPage({
   const bookId = parseInt(id);
   const router = useRouter();
 
-  const { books, fetchBooks, isOwned, getOwnedBook, checkOnChainOwnership, walletAddress, currentPage, setCurrentPage } = useStore();
+  const { books, fetchBooks, isOwned, getOwnedBook, checkOnChainOwnership, walletAddress, currentPage, setCurrentPage, startReadingSession, endReadingSession } = useStore();
   const [aiOpen, setAiOpen] = useState(false);
   const [direction, setDirection] = useState(1);
   const [loaded, setLoaded] = useState(false);
   const [verified, setVerified] = useState<boolean | null>(null);
+  const [showSessionSummary, setShowSessionSummary] = useState(false);
+  const [showDrmModal, setShowDrmModal] = useState(false);
+  const sessionIdRef = useRef<string | null>(null);
+  const startPageRef = useRef<number>(0);
 
   useEffect(() => {
     fetchBooks().then(() => setLoaded(true));
@@ -31,15 +42,23 @@ export default function ReaderPage({
   const book = useMemo(() => books.find((b) => b.id === bookId), [books, bookId]);
   const ownedBook = getOwnedBook(bookId);
   const owned = isOwned(bookId);
+  const metadata = bookMetadata[bookId];
 
-  // On-chain ownership verification — the contract is the source of truth
+  // Start reading session on mount
+  useEffect(() => {
+    if (loaded && verified && owned && !sessionIdRef.current) {
+      sessionIdRef.current = startReadingSession(bookId);
+      startPageRef.current = currentPage[bookId] || 0;
+    }
+  }, [loaded, verified, owned, bookId, startReadingSession, currentPage]);
+
+  // On-chain ownership verification
   useEffect(() => {
     if (!loaded || !walletAddress || !book) return;
     if (!owned) {
       setVerified(false);
       return;
     }
-    // Author bypass — no need to check contract
     if (book.authorAddress === walletAddress) {
       setVerified(true);
       return;
@@ -105,6 +124,27 @@ export default function ReaderPage({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [goNext, goPrev]);
 
+  const handleEndSession = () => {
+    setShowSessionSummary(true);
+  };
+
+  const handleSaveAndExit = () => {
+    if (sessionIdRef.current) {
+      const concepts = metadata?.concepts?.slice(0, 3) || [];
+      endReadingSession(sessionIdRef.current, concepts);
+      sessionIdRef.current = null;
+    }
+    router.push("/library");
+  };
+
+  const pagesRead = Math.abs(pageIdx - startPageRef.current) + 1;
+  const sessionStart = sessionIdRef.current
+    ? useStore.getState().readingSessions.find((s) => s.id === sessionIdRef.current)?.startedAt
+    : null;
+  const sessionDuration = sessionStart
+    ? Math.round((Date.now() - new Date(sessionStart).getTime()) / 60000)
+    : 0;
+
   if (!loaded || verified === null) {
     return (
       <div className="fixed inset-0 bg-[#0A0A08] flex items-center justify-center">
@@ -167,14 +207,15 @@ export default function ReaderPage({
 
   return (
     <div className="fixed inset-0 bg-[#0A0A08] flex flex-col">
-      <DrmWrapper walletAddress={walletAddress || ""}>
+      <DrmWrapper walletAddress={walletAddress || ""} onProtectionAttempt={() => setShowDrmModal(true)}>
         <ReaderTopBar
           book={book}
           ownedBook={ownedBook}
           currentPage={pageIdx}
           totalPages={totalPages}
-          onToggleAi={() => setAiOpen(!aiOpen)}
+          onToggleAi={() => setAiOpen((prev) => !prev)}
           aiOpen={aiOpen}
+          extraActions={<EndSessionButton onClick={handleEndSession} />}
         />
 
         <div className="flex-1 flex relative overflow-hidden pt-16">
@@ -218,7 +259,7 @@ export default function ReaderPage({
               You&apos;ve finished the book
             </p>
             <button
-              onClick={() => router.push("/library")}
+              onClick={handleSaveAndExit}
               className="text-accent text-sm hover:underline"
             >
               Back to Library
@@ -233,6 +274,22 @@ export default function ReaderPage({
         bookId={bookId}
         open={aiOpen}
         onClose={() => setAiOpen(false)}
+      />
+
+      <AnimatePresence>
+        {showSessionSummary && (
+          <SessionSummary
+            durationMinutes={sessionDuration}
+            pagesRead={pagesRead}
+            concepts={metadata?.concepts?.slice(0, 3) || []}
+            onSave={handleSaveAndExit}
+          />
+        )}
+      </AnimatePresence>
+
+      <WhyDrmModal
+        open={showDrmModal}
+        onClose={() => setShowDrmModal(false)}
       />
     </div>
   );

@@ -3,6 +3,28 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useStore } from "@/stores/useStore";
+import type { AiPaneMode } from "@/types";
+
+const modeConfig: Record<AiPaneMode, { label: string; actions: string[] }> = {
+  explain: {
+    label: "Explain",
+    actions: ["Explain this passage", "Define key terms"],
+  },
+  summarize: {
+    label: "Summarize",
+    actions: ["Summarize this chapter", "Key takeaways"],
+  },
+  argue: {
+    label: "Argue",
+    actions: ["Play devil's advocate", "Challenge the thesis"],
+  },
+  counterpoints: {
+    label: "Counterpoints",
+    actions: ["What would a critic say?", "Alternative perspective"],
+  },
+};
+
+const modes: AiPaneMode[] = ["explain", "summarize", "argue", "counterpoints"];
 
 export default function AiPanel({
   bookId,
@@ -13,7 +35,7 @@ export default function AiPanel({
   open: boolean;
   onClose: () => void;
 }) {
-  const { aiMessages, sendAiMessage } = useStore();
+  const { aiMessages, sendAiMessage, aiPaneMode, setAiPaneMode } = useStore();
   const messages = aiMessages[bookId] || [];
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -32,6 +54,8 @@ export default function AiPanel({
     await sendAiMessage(bookId, message);
     setLoading(false);
   };
+
+  const config = modeConfig[aiPaneMode];
 
   return (
     <AnimatePresence>
@@ -56,22 +80,35 @@ export default function AiPanel({
             </button>
           </div>
 
+          {/* Mode tabs */}
+          <div className="flex border-b border-border">
+            {modes.map((mode) => (
+              <button
+                key={mode}
+                onClick={() => setAiPaneMode(mode)}
+                className={`flex-1 py-2 text-[11px] font-body transition-colors ${
+                  aiPaneMode === mode
+                    ? "text-accent border-b-2 border-accent"
+                    : "text-text-muted hover:text-text-secondary"
+                }`}
+              >
+                {modeConfig[mode].label}
+              </button>
+            ))}
+          </div>
+
           {/* Quick actions */}
           <div className="flex gap-2 p-3 border-b border-border">
-            <button
-              onClick={() => handleSend("Summarize this chapter")}
-              disabled={loading}
-              className="px-3 py-1.5 text-xs bg-accent-subtle text-accent rounded border border-accent/20 hover:bg-accent/15 transition-colors disabled:opacity-50"
-            >
-              Summarize this chapter
-            </button>
-            <button
-              onClick={() => handleSend("Explain key themes")}
-              disabled={loading}
-              className="px-3 py-1.5 text-xs bg-accent-subtle text-accent rounded border border-accent/20 hover:bg-accent/15 transition-colors disabled:opacity-50"
-            >
-              Explain key themes
-            </button>
+            {config.actions.map((action) => (
+              <button
+                key={action}
+                onClick={() => handleSend(action)}
+                disabled={loading}
+                className="px-3 py-1.5 text-xs bg-accent-subtle text-accent rounded border border-accent/20 hover:bg-accent/15 transition-colors disabled:opacity-50"
+              >
+                {action}
+              </button>
+            ))}
           </div>
 
           {/* Messages */}
