@@ -20,11 +20,48 @@ export default function PdfReader({
     onReady,
     onError,
 }: PdfReaderProps) {
-    const [numPages, setNumPages] = useState(0);
-    const [pageNumber, setPageNumber] = useState(1);
-    const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [direction, setDirection] = useState(1);
+    const [loading, setLoading] = useState(true);
+    const [pageNumber, setPageNumber] = useState(1);
+    const [numPages, setNumPages] = useState<number>(0);
+    const [direction, setDirection] = useState(0);
+    const [isBlackout, setIsBlackout] = useState(false);
+
+    // Anti-screenshot protection
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === "PrintScreen") {
+                setIsBlackout(true);
+                // Reset after a delay to ensure the screenshot captures black
+                setTimeout(() => setIsBlackout(false), 2000);
+            }
+        };
+
+        const handleBlur = () => {
+            setIsBlackout(true);
+        };
+
+        const handleFocus = () => {
+            setIsBlackout(false);
+        };
+
+        window.addEventListener("keydown", handleKeyDown);
+        window.addEventListener("keyup", handleKeyDown); // Catch both to be safe
+        window.addEventListener("blur", handleBlur);
+        window.addEventListener("focus", handleFocus);
+
+        // Also prevent context menu
+        const handleContextMenu = (e: MouseEvent) => e.preventDefault();
+        window.addEventListener("contextmenu", handleContextMenu);
+
+        return () => {
+            window.removeEventListener("keydown", handleKeyDown);
+            window.removeEventListener("keyup", handleKeyDown);
+            window.removeEventListener("blur", handleBlur);
+            window.removeEventListener("focus", handleFocus);
+            window.removeEventListener("contextmenu", handleContextMenu);
+        };
+    }, []);
 
     const onDocumentLoadSuccess = useCallback(
         ({ numPages }: { numPages: number }) => {
@@ -216,6 +253,13 @@ export default function PdfReader({
                     </span>
                 )}
             </div>
+
+            {/* Blackout Overlay */}
+            {isBlackout && (
+                <div className="absolute inset-0 bg-black z-50 flex items-center justify-center">
+                    <p className="text-white/50 text-sm">Protected Content</p>
+                </div>
+            )}
         </div>
     );
 }

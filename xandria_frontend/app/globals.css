@@ -113,3 +113,24 @@ body {
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
 }
+
+@layer utilities {
+  .no-screenshot {
+    user-select: none;
+    -webkit-user-select: none;
+  }
+}
+
+@media print {
+  body {
+    display: none !important;
+  }
+
+  html::after {
+    content: "Printing is disabled for this content.";
+    display: block;
+    padding: 2rem;
+    font-size: 1.5rem;
+    text-align: center;
+  }
+}
