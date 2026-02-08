@@ -13,6 +13,7 @@ export default function UploadBookPage() {
   const [formData, setFormData] = useState({
     title: "",
     author: "",
+    description: "",
     price: "",
     supply: "100",
   });
@@ -72,6 +73,7 @@ export default function UploadBookPage() {
         author: address,
         title: formData.title,
         author_name: formData.author,
+        description: formData.description,
         price: priceInStroops,
         cover_uri: coverUrl,
         book_uri: bookUrl,
@@ -135,6 +137,20 @@ export default function UploadBookPage() {
               value={formData.author}
               onChange={handleInputChange}
               required
+              className={inputClass}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-body text-text-secondary mb-1.5">
+              Description
+            </label>
+            <textarea
+              name="description"
+              value={formData.description}
+              onChange={handleInputChange}
+              required
+              rows={4}
               className={inputClass}
             />
           </div>
@@ -230,11 +246,10 @@ export default function UploadBookPage() {
           <button
             type="submit"
             disabled={isUploading}
-            className={`w-full py-3.5 font-body font-medium text-sm transition-opacity ${
-              isUploading
+            className={`w-full py-3.5 font-body font-medium text-sm transition-opacity ${isUploading
                 ? "bg-surface-hover text-text-muted cursor-not-allowed"
                 : "bg-accent text-background hover:opacity-90"
-            }`}
+              }`}
           >
             {isUploading ? "Publishing..." : "Mint & Publish"}
           </button>

@@ -39,7 +39,6 @@ export interface Book {
   author_address: string;
   book_uri: string;
   cover_uri: string;
-  description: string;
   is_special: boolean;
   price: i128;
   remaining_supply: u32;
@@ -47,7 +46,7 @@ export interface Book {
   total_supply: u32;
 }
 
-export type DataKey = {tag: "Admin", values: void} | {tag: "Book", values: readonly [u32]} | {tag: "TokenIdCounter", values: void} | {tag: "Purchase", values: readonly [string, u32]};
+export type DataKey = {tag: "Book", values: readonly [u32]} | {tag: "TokenIdCounter", values: void} | {tag: "Purchase", values: readonly [string, u32]};
 
 export interface Client {
   /**
@@ -61,14 +60,9 @@ export interface Client {
   get_book: ({book_id}: {book_id: u32}, options?: MethodOptions) => Promise<AssembledTransaction<Option<Book>>>
 
   /**
-   * Construct and simulate a initialize transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
-   */
-  initialize: ({admin}: {admin: string}, options?: MethodOptions) => Promise<AssembledTransaction<null>>
-
-  /**
    * Construct and simulate a publish_book transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
    */
-  publish_book: ({author, title, author_name, description, price, cover_uri, book_uri, is_special, supply}: {author: string, title: string, author_name: string, description: string, price: i128, cover_uri: string, book_uri: string, is_special: boolean, supply: u32}, options?: MethodOptions) => Promise<AssembledTransaction<u32>>
+  publish_book: ({author, title, author_name, price, cover_uri, book_uri, is_special, supply}: {author: string, title: string, author_name: string, price: i128, cover_uri: string, book_uri: string, is_special: boolean, supply: u32}, options?: MethodOptions) => Promise<AssembledTransaction<u32>>
 
   /**
    * Construct and simulate a has_purchased transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
@@ -93,12 +87,11 @@ export class Client extends ContractClient {
   }
   constructor(public readonly options: ContractClientOptions) {
     super(
-      new ContractSpec([ "AAAAAQAAAAAAAAAAAAAABEJvb2sAAAAKAAAAAAAAAAZhdXRob3IAAAAAABAAAAAAAAAADmF1dGhvcl9hZGRyZXNzAAAAAAATAAAAAAAAAAhib29rX3VyaQAAABAAAAAAAAAACWNvdmVyX3VyaQAAAAAAABAAAAAAAAAAC2Rlc2NyaXB0aW9uAAAAABAAAAAAAAAACmlzX3NwZWNpYWwAAAAAAAEAAAAAAAAABXByaWNlAAAAAAAACwAAAAAAAAAQcmVtYWluaW5nX3N1cHBseQAAAAQAAAAAAAAABXRpdGxlAAAAAAAAEAAAAAAAAAAMdG90YWxfc3VwcGx5AAAABA==",
-        "AAAAAgAAAAAAAAAAAAAAB0RhdGFLZXkAAAAABAAAAAAAAAAAAAAABUFkbWluAAAAAAAAAQAAAAAAAAAEQm9vawAAAAEAAAAEAAAAAAAAAAAAAAAOVG9rZW5JZENvdW50ZXIAAAAAAAEAAAAAAAAACFB1cmNoYXNlAAAAAgAAABMAAAAE",
+      new ContractSpec([ "AAAAAQAAAAAAAAAAAAAABEJvb2sAAAAJAAAAAAAAAAZhdXRob3IAAAAAABAAAAAAAAAADmF1dGhvcl9hZGRyZXNzAAAAAAATAAAAAAAAAAhib29rX3VyaQAAABAAAAAAAAAACWNvdmVyX3VyaQAAAAAAABAAAAAAAAAACmlzX3NwZWNpYWwAAAAAAAEAAAAAAAAABXByaWNlAAAAAAAACwAAAAAAAAAQcmVtYWluaW5nX3N1cHBseQAAAAQAAAAAAAAABXRpdGxlAAAAAAAAEAAAAAAAAAAMdG90YWxfc3VwcGx5AAAABA==",
+        "AAAAAgAAAAAAAAAAAAAAB0RhdGFLZXkAAAAAAwAAAAEAAAAAAAAABEJvb2sAAAABAAAABAAAAAAAAAAAAAAADlRva2VuSWRDb3VudGVyAAAAAAABAAAAAAAAAAhQdXJjaGFzZQAAAAIAAAATAAAABA==",
         "AAAAAAAAAAAAAAAIYnV5X2Jvb2sAAAADAAAAAAAAAAVidXllcgAAAAAAABMAAAAAAAAAB2Jvb2tfaWQAAAAABAAAAAAAAAANdG9rZW5fYWRkcmVzcwAAAAAAABMAAAAA",
         "AAAAAAAAAAAAAAAIZ2V0X2Jvb2sAAAABAAAAAAAAAAdib29rX2lkAAAAAAQAAAABAAAD6AAAB9AAAAAEQm9vaw==",
-        "AAAAAAAAAAAAAAAKaW5pdGlhbGl6ZQAAAAAAAQAAAAAAAAAFYWRtaW4AAAAAAAATAAAAAA==",
-        "AAAAAAAAAAAAAAAMcHVibGlzaF9ib29rAAAACQAAAAAAAAAGYXV0aG9yAAAAAAATAAAAAAAAAAV0aXRsZQAAAAAAABAAAAAAAAAAC2F1dGhvcl9uYW1lAAAAABAAAAAAAAAAC2Rlc2NyaXB0aW9uAAAAABAAAAAAAAAABXByaWNlAAAAAAAACwAAAAAAAAAJY292ZXJfdXJpAAAAAAAAEAAAAAAAAAAIYm9va191cmkAAAAQAAAAAAAAAAppc19zcGVjaWFsAAAAAAABAAAAAAAAAAZzdXBwbHkAAAAAAAQAAAABAAAABA==",
+        "AAAAAAAAAAAAAAAMcHVibGlzaF9ib29rAAAACAAAAAAAAAAGYXV0aG9yAAAAAAATAAAAAAAAAAV0aXRsZQAAAAAAABAAAAAAAAAAC2F1dGhvcl9uYW1lAAAAABAAAAAAAAAABXByaWNlAAAAAAAACwAAAAAAAAAJY292ZXJfdXJpAAAAAAAAEAAAAAAAAAAIYm9va191cmkAAAAQAAAAAAAAAAppc19zcGVjaWFsAAAAAAABAAAAAAAAAAZzdXBwbHkAAAAAAAQAAAABAAAABA==",
         "AAAAAAAAAAAAAAANaGFzX3B1cmNoYXNlZAAAAAAAAAIAAAAAAAAABWJ1eWVyAAAAAAAAEwAAAAAAAAAHYm9va19pZAAAAAAEAAAAAQAAAAE=" ]),
       options
     )
@@ -106,7 +99,6 @@ export class Client extends ContractClient {
   public readonly fromJSON = {
     buy_book: this.txFromJSON<null>,
         get_book: this.txFromJSON<Option<Book>>,
-        initialize: this.txFromJSON<null>,
         publish_book: this.txFromJSON<u32>,
         has_purchased: this.txFromJSON<boolean>
   }

@@ -9,6 +9,7 @@ pub struct Book {
     pub price: i128,
     pub cover_uri: String,
     pub book_uri: String,
+    pub description: String, // Added description
     pub is_special: bool,
     pub total_supply: u32,
     pub remaining_supply: u32,
@@ -18,6 +19,7 @@ pub struct Book {
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum DataKey {
+    Admin, // Added Admin key
     Book(u32),
     TokenIdCounter,
     Purchase(Address, u32),
@@ -28,11 +30,19 @@ pub struct HelloWorldContract;
 
 #[contractimpl]
 impl HelloWorldContract {
+    pub fn initialize(env: Env, admin: Address) {
+        if env.storage().instance().has(&DataKey::Admin) {
+            panic!("Already initialized");
+        }
+        env.storage().instance().set(&DataKey::Admin, &admin);
+    }
+
     pub fn publish_book(
         env: Env,
         author: Address,
         title: String,
         author_name: String,
+        description: String, // Added description param
         price: i128,
         cover_uri: String,
         book_uri: String,
@@ -57,6 +67,7 @@ impl HelloWorldContract {
             price,
             cover_uri,
             book_uri,
+            description, // Store description
             is_special,
             total_supply,
             remaining_supply,
@@ -100,9 +111,29 @@ impl HelloWorldContract {
             panic!("You have already bought this book");
         }
 
+        // Get admin address
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .expect("Contract not initialized");
+
+        // Calculate fee (10%)
+        let fee = book.price / 10;
+        let author_amount = book.price - fee;
+
         // Transfer funds
         let token = token::Client::new(&env, &token_address);
-        token.transfer(&buyer, &book.author_address, &book.price);
+
+        // 10% to admin
+        if fee > 0 {
+            token.transfer(&buyer, &admin, &fee);
+        }
+
+        // Remainder to author
+        if author_amount > 0 {
+            token.transfer(&buyer, &book.author_address, &author_amount);
+        }
 
         // Record purchase
         env.storage()
