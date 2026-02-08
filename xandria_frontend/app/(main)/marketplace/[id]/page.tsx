@@ -6,6 +6,7 @@ import { useStore } from "@/stores/useStore";
 import { getContractClient, stroopsToXlm } from "@/lib/stellar";
 import { bookEnrichment } from "@/data/books";
 import PurchaseModal from "@/components/purchase-modal";
+import TipModal from "@/components/tip-modal";
 import MintNumberOverlay from "@/components/mint-number-overlay";
 import type { Book } from "@/types";
 
@@ -16,9 +17,8 @@ function RatingDots({ rating, votes }: { rating: number; votes: number }) {
         {[1, 2, 3, 4, 5].map((i) => (
           <span
             key={i}
-            className={`w-2 h-2 rounded-full ${
-              i <= Math.round(rating) ? "bg-accent" : "bg-border"
-            }`}
+            className={`w-2 h-2 rounded-full ${i <= Math.round(rating) ? "bg-accent" : "bg-border"
+              }`}
           />
         ))}
       </div>
@@ -39,7 +39,10 @@ export default function BookDetailsPage({
   const [book, setBook] = useState<Book | null>(null);
   const [loading, setLoading] = useState(true);
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
+  const [showTipModal, setShowTipModal] = useState(false);
   const [showAiSummary, setShowAiSummary] = useState(false);
+  const [tips, setTips] = useState<any[]>([]);
+  const [loadingTips, setLoadingTips] = useState(false);
 
   // Load the book data
   useEffect(() => {
@@ -66,7 +69,7 @@ export default function BookDetailsPage({
               const metadata = await res.json();
               coverUri = coverUri || metadata.cover_uri || "";
               bookUri = bookUri || metadata.book_uri || "";
-            } catch {}
+            } catch { }
           }
           const enrichment = bookEnrichment[bookId] || {};
           const remainingSupply = Number(cb.remaining_supply);
@@ -238,33 +241,88 @@ export default function BookDetailsPage({
             </div>
           )}
 
-          {owned ? (
-            <Link
-              href={`/library/${book.id}/read`}
-              className="inline-block py-3.5 px-10 bg-background border border-accent text-accent font-body font-medium text-sm transition-colors hover:bg-accent hover:text-background"
-            >
-              Read
-            </Link>
-          ) : isSoldOut ? (
-            <button
-              disabled
-              className="py-3.5 px-10 bg-surface text-text-muted font-body font-medium text-sm cursor-not-allowed"
-            >
-              Sold Out
-            </button>
-          ) : (
-            <button
-              onClick={() => setShowPurchaseModal(true)}
-              className="py-3.5 px-10 bg-accent text-background font-body font-medium text-sm transition-opacity hover:opacity-90"
-            >
-              Own This Book
-            </button>
+          <div className="flex gap-3 flex-wrap">
+            {owned ? (
+              <Link
+                href={`/library/${book.id}/read`}
+                className="inline-block py-3.5 px-10 bg-background border border-accent text-accent font-body font-medium text-sm transition-colors hover:bg-accent hover:text-background"
+              >
+                Read
+              </Link>
+            ) : isSoldOut ? (
+              <button
+                disabled
+                className="py-3.5 px-10 bg-surface text-text-muted font-body font-medium text-sm cursor-not-allowed"
+              >
+                Sold Out
+              </button>
+            ) : (
+              book.authorAddress !== walletAddress && (
+                <button
+                  onClick={() => setShowPurchaseModal(true)}
+                  className="py-3.5 px-10 bg-accent text-background font-body font-medium text-sm transition-opacity hover:opacity-90"
+                >
+                  Own This Book
+                </button>
+              )
+            )}
+
+            {walletAddress && book.authorAddress !== walletAddress && (
+              <button
+                onClick={() => setShowTipModal(true)}
+                className="py-3.5 px-10 bg-background border border-accent text-accent font-body font-medium text-sm transition-colors hover:bg-accent hover:text-background"
+              >
+                💝 Tip Author
+              </button>
+            )}
+          </div>
+
+          {walletAddress && book.authorAddress === walletAddress && (
+            <div className="mt-8">
+              <button
+                onClick={async () => {
+                  setLoadingTips(true);
+                  try {
+                    const client = getContractClient();
+                    const result = await client.get_tips({ book_id: bookId });
+                    setTips(result.result || []);
+                  } catch (e) {
+                    console.error("Error loading tips:", e);
+                  } finally {
+                    setLoadingTips(false);
+                  }
+                }}
+                className="text-sm text-accent hover:underline mb-4"
+              >
+                {loadingTips ? "Loading..." : "📬 View Tips & Messages"}
+              </button>
+
+              {tips.length > 0 && (
+                <div className="space-y-3 max-h-60 overflow-y-auto">
+                  {tips.map((tip: any, idx: number) => (
+                    <div key={idx} className="p-4 bg-surface border border-border rounded-lg">
+                      <p className="text-text-primary text-sm mb-1">{tip.message}</p>
+                      <p className="text-text-muted text-xs">
+                        {stroopsToXlm(tip.amount)} XLM from {tip.sender.slice(0, 8)}...
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>
 
       {showPurchaseModal && book && (
         <PurchaseModal book={book} onClose={() => setShowPurchaseModal(false)} />
+      )}
+      {showTipModal && book && (
+        <TipModal
+          bookId={book.id}
+          authorAddress={book.authorAddress}
+          onClose={() => setShowTipModal(false)}
+        />
       )}
     </div>
   );

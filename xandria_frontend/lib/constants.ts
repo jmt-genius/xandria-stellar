@@ -6,5 +6,6 @@ export const NETWORK_PASSPHRASE =
 export const RPC_URL =
   process.env.NEXT_PUBLIC_RPC_URL || "https://soroban-testnet.stellar.org";
 export const XLM_TOKEN_ADDRESS = "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC";
+export const NATIVE_TOKEN_ADDRESS = XLM_TOKEN_ADDRESS; // Alias for tipping
 export const STROOPS_PER_XLM = 10_000_000;
 export const PINATA_GATEWAY = "https://chocolate-worldwide-earwig-657.mypinata.cloud/ipfs/";

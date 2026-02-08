@@ -30,6 +30,7 @@ interface AppStore {
   buyBookOnChain: (bookId: number) => Promise<void>;
   checkOnChainOwnership: (bookId: number) => Promise<boolean>;
   syncOwnedBooks: () => Promise<void>;
+  clearOwnedBooks: () => void; // Clear all owned books (useful when contract changes)
   isOwned: (bookId: number) => boolean;
   getOwnedBook: (bookId: number) => OwnedBook | undefined;
 
@@ -267,6 +268,10 @@ export const useStore = create<AppStore>()(
         const address = get().walletAddress;
         if (!address) return undefined;
         return get().ownedBooks.find((b) => b.bookId === bookId && b.ownerAddress === address);
+      },
+
+      clearOwnedBooks: () => {
+        set({ ownedBooks: [] });
       },
 
       // Reading

@@ -18,11 +18,21 @@ pub struct Book {
 
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Tip {
+    pub sender: Address,
+    pub amount: i128,
+    pub message: String,
+    pub timestamp: u64,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum DataKey {
-    Admin, // Added Admin key
+    Admin,
     Book(u32),
     TokenIdCounter,
     Purchase(Address, u32),
+    Tips(u32), // Book ID -> Vec<Tip>
 }
 
 #[contract]
@@ -42,7 +52,7 @@ impl HelloWorldContract {
         author: Address,
         title: String,
         author_name: String,
-        description: String, // Added description param
+        description: String,
         price: i128,
         cover_uri: String,
         book_uri: String,
@@ -67,7 +77,7 @@ impl HelloWorldContract {
             price,
             cover_uri,
             book_uri,
-            description, // Store description
+            description,
             is_special,
             total_supply,
             remaining_supply,
@@ -153,6 +163,55 @@ impl HelloWorldContract {
         env.storage()
             .persistent()
             .has(&DataKey::Purchase(buyer, book_id))
+    }
+
+    pub fn tip_author(
+        env: Env,
+        sender: Address,
+        book_id: u32,
+        amount: i128,
+        message: String,
+        token_address: Address,
+    ) {
+        sender.require_auth();
+
+        let book: Book = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Book(book_id))
+            .expect("Book not found");
+
+        if amount <= 0 {
+            panic!("Tip amount must be positive");
+        }
+
+        let token = token::Client::new(&env, &token_address);
+        token.transfer(&sender, &book.author_address, &amount);
+
+        // Store the tip
+        let mut tips: soroban_sdk::Vec<Tip> = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Tips(book_id))
+            .unwrap_or(soroban_sdk::Vec::new(&env));
+
+        tips.push_back(Tip {
+            sender,
+            amount,
+            message,
+            timestamp: env.ledger().timestamp(),
+        });
+
+        env.storage()
+            .persistent()
+            .set(&DataKey::Tips(book_id), &tips);
+    }
+
+    pub fn get_tips(env: Env, book_id: u32) -> soroban_sdk::Vec<Tip> {
+        env.storage()
+            .persistent()
+            .get(&DataKey::Tips(book_id))
+            .unwrap_or(soroban_sdk::Vec::new(&env))
     }
 }
 
