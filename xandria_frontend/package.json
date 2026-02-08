@@ -11,12 +11,15 @@
   "dependencies": {
     "@gsap/react": "^2.1.2",
     "@radix-ui/react-slot": "^1.2.4",
+    "@raqemi/video-drm": "^1.0.0",
     "@stellar/freighter-api": "^6.0.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "epubjs": "^0.3.93",
     "framer-motion": "^12.33.0",
     "gsap": "^3.14.2",
     "hello-world-contract": "file:./bindings/hello-world",
+    "jszip": "^3.10.1",
     "lucide-react": "^0.563.0",
     "motion": "^12.33.0",
     "next": "16.1.6",
@@ -24,9 +27,9 @@
     "radix-ui": "^1.4.3",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "react-pdf": "^10.3.0",
     "tailwind-merge": "^3.4.0",
     "zustand": "^5.0.11"
-
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
