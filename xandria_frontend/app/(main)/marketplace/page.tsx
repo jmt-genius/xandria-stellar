@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import { useStore } from "@/stores/useStore";
 import BookCard from "@/components/book-card";
 import { allGenres } from "@/data/books";
-import { editorialRows } from "@/data/editorial";
+import { editorialRows, resolveEditorialBooks } from "@/data/editorial";
 
 const CircularGallery = dynamic(() => import("@/components/circular-gallery"), {
   ssr: false,
@@ -73,22 +73,13 @@ export default function MarketplacePage() {
     return result.toSorted(sortFn);
   }, [books, selectedGenre, sortBy, search]);
 
-  // Build book index Map for O(1) lookups
-  const bookMap = useMemo(() => {
-    const map = new Map<number, typeof books[0]>();
-    for (const book of books) map.set(book.id, book);
-    return map;
-  }, [books]);
-
-  // Build editorial rows with real book data
+  // Build editorial rows with real book data (title-based matching)
   const editorialRowsWithBooks = useMemo(() => {
     return editorialRows.map((row) => ({
       ...row,
-      books: row.bookIds
-        .map((id) => bookMap.get(id))
-        .filter(Boolean) as typeof books,
+      books: resolveEditorialBooks(row, books),
     }));
-  }, [bookMap]);
+  }, [books]);
 
   return (
     <div>

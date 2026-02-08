@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import type { Book, OwnedBook } from "@/types";
-import { bookMetadata } from "@/data/book-metadata";
+import { getBookMetadata } from "@/data/book-metadata";
 import GroupedShelf from "./grouped-shelf";
 
 type EmotionalShelfProps = {
@@ -15,7 +15,7 @@ export default function EmotionalShelf({ books, ownedBooks }: EmotionalShelfProp
     const toneGroups: Record<string, { book: Book; owned: OwnedBook }[]> = {};
 
     for (const book of books) {
-      const meta = bookMetadata[book.id];
+      const meta = getBookMetadata(book);
       if (!meta) continue;
       const owned = ownedBooks.find((o) => o.bookId === book.id);
       if (!owned) continue;

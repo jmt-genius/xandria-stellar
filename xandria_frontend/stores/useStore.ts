@@ -5,9 +5,9 @@ import { persist } from "zustand/middleware";
 import type { Book, OwnedBook, AiMessage, Notification, ReadingSession, ReadingProfile, ShelfMode, AiPaneMode, InfoModalType, Highlight } from "@/types";
 import { getContractClient, stroopsToXlm } from "@/lib/stellar";
 import { XLM_TOKEN_ADDRESS, NETWORK_PASSPHRASE } from "@/lib/constants";
-import { bookEnrichment } from "@/data/books";
+import { getEnrichmentByTitle } from "@/data/books";
 import { mockSessions } from "@/data/mock-sessions";
-import { bookMetadata } from "@/data/book-metadata";
+
 import { uuid } from "@/lib/utils";
 
 interface AppStore {
@@ -135,16 +135,11 @@ export const useStore = create<AppStore>()(
                   console.log(`[Debug] Book ${id} Resolved URIs:`, { coverUri, bookUri });
                 }
 
-                const enrichment = bookEnrichment[id] || {};
+                const enrichment = getEnrichmentByTitle(cb.title);
                 const remainingSupply = Number(cb.remaining_supply);
 
                 // If we have a valid bookUri (EPUB/PDF), we should NOT use hardcoded chapters from enrichment
-                // This prevents "1984" content appearing for user uploads that have ID 2 but are different books
                 const chapters = bookUri ? [] : (enrichment.chapters || []);
-
-                if (bookUri && enrichment.chapters?.length) {
-                  console.log(`[Debug] Book ${id} has bookUri, ignoring hardcoded chapters.`);
-                }
 
                 loadedBooks.push({
                   id,
@@ -589,6 +584,7 @@ export const useStore = create<AppStore>()(
     {
       name: "xandria-store",
       partialize: (state) => ({
+        books: state.books,
         ownedBooks: state.ownedBooks,
         currentPage: state.currentPage,
         readingSessions: state.readingSessions,

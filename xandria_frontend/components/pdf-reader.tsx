@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import { motion, AnimatePresence } from "framer-motion";
 import { useStore } from "@/stores/useStore";
+import { getCachedFile, cacheFile } from "@/lib/epub-cache";
 
 // Set up PDF.js worker
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
@@ -106,15 +107,27 @@ export default function PdfReader({
                 setError(null);
                 console.log(`[PDF Debug] Fetching PDF from: ${bookUri}`);
 
-                const response = await fetch(bookUri);
-                console.log(`[PDF Debug] Fetch response status: ${response.status} ${response.statusText}`);
-                console.log(`[PDF Debug] Content-Type: ${response.headers.get("content-type")}`);
-                console.log(`[PDF Debug] Content-Length: ${response.headers.get("content-length")}`);
+                // Try IndexedDB cache first
+                const cached = await getCachedFile(bookUri);
+                let blob: Blob;
 
-                if (!response.ok) throw new Error(`Failed to fetch PDF: ${response.statusText}`);
+                if (cached) {
+                    console.log(`[PDF Debug] Loaded from IndexedDB cache. Size: ${cached.byteLength} bytes`);
+                    blob = new Blob([cached], { type: "application/pdf" });
+                } else {
+                    const response = await fetch(bookUri);
+                    console.log(`[PDF Debug] Fetch response status: ${response.status} ${response.statusText}`);
+                    console.log(`[PDF Debug] Content-Type: ${response.headers.get("content-type")}`);
+                    console.log(`[PDF Debug] Content-Length: ${response.headers.get("content-length")}`);
 
-                const blob = await response.blob();
-                console.log(`[PDF Debug] Blob created. Size: ${blob.size} bytes, Type: ${blob.type}`);
+                    if (!response.ok) throw new Error(`Failed to fetch PDF: ${response.statusText}`);
+
+                    blob = await response.blob();
+                    console.log(`[PDF Debug] Blob created. Size: ${blob.size} bytes, Type: ${blob.type}`);
+
+                    // Cache for next time (non-blocking)
+                    blob.arrayBuffer().then((buf) => cacheFile(bookUri, buf));
+                }
 
                 if (!active) return;
 

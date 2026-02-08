@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { Book, OwnedBook } from "@/types";
-import { bookMetadata } from "@/data/book-metadata";
+import { getBookMetadata } from "@/data/book-metadata";
 import MintNumberOverlay from "./mint-number-overlay";
 import BookCover from "@/components/book-cover";
 
@@ -15,7 +15,7 @@ export default function OwnedBookCard({
 }) {
   const totalPages = book.chapters.reduce((sum, ch) => sum + ch.content.length, 0);
   const progress = totalPages > 0 ? ownedBook.currentPage / totalPages : 0;
-  const metadata = bookMetadata[book.id];
+  const metadata = getBookMetadata(book);
   const hoverText = metadata?.whyPeopleRead?.[0] || `Purchased on ${new Date(ownedBook.purchasedAt).toLocaleDateString()}`;
 
   return (

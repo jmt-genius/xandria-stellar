@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import type { Book } from "@/types";
-import { bookMetadata } from "@/data/book-metadata";
+import { getBookMetadata } from "@/data/book-metadata";
 import MetadataPills from "@/components/marketplace/metadata-pills";
 import RatingDots from "@/components/rating-dots";
 import BookCover from "@/components/book-cover";
 import { formatPrice } from "@/lib/format";
 
 export default function BookCard({ book }: { book: Book }) {
-  const metadata = bookMetadata[book.id];
+  const metadata = getBookMetadata(book);
 
   return (
     <Link href={`/marketplace/${book.id}`}>

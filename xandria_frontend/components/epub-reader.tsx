@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import type { Book, Rendition } from "epubjs";
 import { useStore } from "@/stores/useStore";
+import { getCachedFile, cacheFile } from "@/lib/epub-cache";
 
 interface EpubReaderProps {
     bookUri: string;
@@ -61,16 +62,26 @@ export default function EpubReader({
 
                 console.log(`[EPUB Debug] Fetching book from: ${bookUri}`);
 
-                // Fetch the file as an ArrayBuffer to bypass potential MIME type issues/downloads
-                const response = await fetch(bookUri);
-                console.log(`[EPUB Debug] Fetch response status: ${response.status} ${response.statusText}`);
-                console.log(`[EPUB Debug] Content-Type: ${response.headers.get("content-type")}`);
-                console.log(`[EPUB Debug] Content-Length: ${response.headers.get("content-length")}`);
+                // Try IndexedDB cache first
+                let arrayBuffer = await getCachedFile(bookUri);
 
-                if (!response.ok) throw new Error(`Failed to fetch book: ${response.statusText}`);
+                if (arrayBuffer) {
+                    console.log(`[EPUB Debug] Loaded from IndexedDB cache. Size: ${arrayBuffer.byteLength} bytes`);
+                } else {
+                    // Fetch the file as an ArrayBuffer to bypass potential MIME type issues/downloads
+                    const response = await fetch(bookUri);
+                    console.log(`[EPUB Debug] Fetch response status: ${response.status} ${response.statusText}`);
+                    console.log(`[EPUB Debug] Content-Type: ${response.headers.get("content-type")}`);
+                    console.log(`[EPUB Debug] Content-Length: ${response.headers.get("content-length")}`);
 
-                const arrayBuffer = await response.arrayBuffer();
-                console.log(`[EPUB Debug] ArrayBuffer received. Size: ${arrayBuffer.byteLength} bytes`);
+                    if (!response.ok) throw new Error(`Failed to fetch book: ${response.statusText}`);
+
+                    arrayBuffer = await response.arrayBuffer();
+                    console.log(`[EPUB Debug] ArrayBuffer received. Size: ${arrayBuffer.byteLength} bytes`);
+
+                    // Cache for next time (non-blocking)
+                    cacheFile(bookUri, arrayBuffer);
+                }
 
                 // Dynamically import libraries
                 const [JSZip, customEpub] = await Promise.all([

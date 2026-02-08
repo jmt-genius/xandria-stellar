@@ -1,8 +1,15 @@
 "use client";
 
-import type { AuthorProfile } from "@/types";
+type AuthorHeaderProps = {
+  author: {
+    name: string;
+    bio: string;
+    fields: string[];
+    address: string;
+  };
+};
 
-export default function AuthorHeader({ author }: { author: AuthorProfile }) {
+export default function AuthorHeader({ author }: AuthorHeaderProps) {
   return (
     <div className="mb-10">
       <h1 className="font-display text-4xl text-text-primary">{author.name}</h1>

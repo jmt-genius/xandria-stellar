@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import type { Book, OwnedBook } from "@/types";
-import { bookMetadata } from "@/data/book-metadata";
+import { getBookMetadata } from "@/data/book-metadata";
 import GroupedShelf from "./grouped-shelf";
 
 type ThemeShelfProps = {
@@ -11,10 +11,11 @@ type ThemeShelfProps = {
 };
 
 const themeGroups: Record<string, string[]> = {
-  "Power & Strategy": ["strategy", "leadership", "power", "surveillance", "totalitarianism"],
-  "Love & Society": ["love", "marriage", "class", "pride", "prejudice"],
-  "Philosophy & Self": ["stoicism", "duty", "virtue", "impermanence", "self-discipline", "self-knowledge"],
-  "Creation & Ambition": ["creation", "ambition", "american dream", "wealth", "disillusionment"],
+  "Systems & Complexity": ["systems", "feedback loops", "uncertainty", "rare events", "antifragility", "volatility", "complexity"],
+  "Craft & Creation": ["creativity", "craft", "process", "routine", "discipline", "awareness", "creative process"],
+  "Strategy & Execution": ["strategy", "leadership", "execution", "goals", "lateral thinking", "simplicity", "innovation"],
+  "Philosophy & Self": ["quality", "freedom", "morality", "faith", "identity", "play", "boundaries", "doubt"],
+  "Human Nature": ["body language", "social behavior", "guilt", "memory", "alienation", "suffering", "human nature"],
 };
 
 export default function ThemeShelf({ books, ownedBooks }: ThemeShelfProps) {
@@ -23,7 +24,7 @@ export default function ThemeShelf({ books, ownedBooks }: ThemeShelfProps) {
 
     for (const [group, concepts] of Object.entries(themeGroups)) {
       const matched = books.filter((book) => {
-        const meta = bookMetadata[book.id];
+        const meta = getBookMetadata(book);
         if (!meta) return false;
         return meta.concepts.some((c) => concepts.includes(c));
       });

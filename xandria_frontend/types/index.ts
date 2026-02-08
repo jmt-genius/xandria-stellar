@@ -91,6 +91,7 @@ export type AuthorProfile = {
   bio: string;
   fields: string[];
   publishedBookIds: number[];
+  bookTitles: string[];
 };
 
 export type CuratedCollection = {
@@ -99,7 +100,7 @@ export type CuratedCollection = {
   subtitle: string;
   curatorName: string;
   description: string;
-  bookIds: number[];
+  bookTitles: string[];
 };
 
 export type ShelfMode = "chronological" | "theme" | "emotional";

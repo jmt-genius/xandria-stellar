@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { AnimatePresence } from "framer-motion";
 import { useStore } from "@/stores/useStore";
-import { bookMetadata } from "@/data/book-metadata";
+import { getBookMetadata } from "@/data/book-metadata";
 import DrmWrapper from "@/components/drm-wrapper";
 import ReaderTopBar from "@/components/reader-top-bar";
 import ReaderContent from "@/components/reader-content";
@@ -91,7 +91,7 @@ export default function ReaderPage({
   const book = useMemo(() => books.find((b) => b.id === bookId), [books, bookId]);
   const ownedBook = getOwnedBook(bookId);
   const owned = isOwned(bookId);
-  const metadata = bookMetadata[bookId];
+  const metadata = book ? getBookMetadata(book) : undefined;
 
   // Determine file type and whether to use file reader
   const fileType = useMemo(() => {

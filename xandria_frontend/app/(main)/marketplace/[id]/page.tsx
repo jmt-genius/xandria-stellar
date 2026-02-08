@@ -5,10 +5,10 @@ import Link from "next/link";
 import { useStore } from "@/stores/useStore";
 import { getContractClient, stroopsToXlm } from "@/lib/stellar";
 import { formatPrice } from "@/lib/format";
-import { bookEnrichment } from "@/data/books";
-import { bookMetadata } from "@/data/book-metadata";
-import { reviews as allReviews } from "@/data/reviews";
-import { authors } from "@/data/authors";
+import { getEnrichmentByTitle } from "@/data/books";
+import { getBookMetadata } from "@/data/book-metadata";
+import { getReviewsForBook } from "@/data/reviews";
+import { getAuthorForBook } from "@/data/authors";
 import dynamic from "next/dynamic";
 import TipModal from "@/components/tip-modal";
 import MintNumberOverlay from "@/components/mint-number-overlay";
@@ -42,9 +42,9 @@ export default function BookDetailsPage({
   const [tips, setTips] = useState<any[]>([]);
   const [loadingTips, setLoadingTips] = useState(false);
 
-  const metadata = bookMetadata[bookId];
-  const bookReviews = useMemo(() => allReviews.filter((r) => r.bookId === bookId), [bookId]);
-  const author = useMemo(() => authors.find((a) => a.publishedBookIds.includes(bookId)), [bookId]);
+  const metadata = book ? getBookMetadata(book) : undefined;
+  const bookReviews = useMemo(() => (book ? getReviewsForBook(book) : []), [book]);
+  const author = useMemo(() => (book ? getAuthorForBook(book) : undefined), [book]);
 
   // Load the book data
   useEffect(() => {
@@ -73,7 +73,7 @@ export default function BookDetailsPage({
               bookUri = bookUri || meta.book_uri || "";
             } catch {}
           }
-          const enrichment = bookEnrichment[bookId] || {};
+          const enrichment = getEnrichmentByTitle(cb.title);
           const remainingSupply = Number(cb.remaining_supply);
           setBook({
             id: bookId,

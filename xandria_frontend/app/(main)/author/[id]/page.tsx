@@ -3,7 +3,8 @@
 import { use, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useStore } from "@/stores/useStore";
-import { authors } from "@/data/authors";
+import { getAuthorById } from "@/data/authors";
+import { normalizeTitle } from "@/lib/book-helpers";
 import AuthorHeader from "@/components/community/author-header";
 import BookCard from "@/components/book-card";
 
@@ -19,11 +20,18 @@ export default function AuthorProfilePage({
     fetchBooks();
   }, [fetchBooks]);
 
-  const author = useMemo(() => authors.find((a) => a.id === id), [id]);
+  const author = useMemo(() => getAuthorById(id), [id]);
 
   const authorBooks = useMemo(() => {
     if (!author) return [];
-    return books.filter((b) => author.publishedBookIds.includes(b.id));
+    return books.filter((b) =>
+      author.bookTitles.some(
+        (t) =>
+          normalizeTitle(t) === normalizeTitle(b.title) ||
+          normalizeTitle(b.title).startsWith(normalizeTitle(t)) ||
+          normalizeTitle(t).startsWith(normalizeTitle(b.title)),
+      ),
+    );
   }, [author, books]);
 
   if (!author) {
