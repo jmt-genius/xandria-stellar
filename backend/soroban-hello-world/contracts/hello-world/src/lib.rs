@@ -9,6 +9,7 @@ pub struct Book {
     pub price: i128,
     pub cover_uri: String,
     pub book_uri: String,
+    pub description: String, // Added description
     pub is_special: bool,
     pub total_supply: u32,
     pub remaining_supply: u32,
@@ -17,10 +18,21 @@ pub struct Book {
 
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Tip {
+    pub sender: Address,
+    pub amount: i128,
+    pub message: String,
+    pub timestamp: u64,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum DataKey {
+    Admin,
     Book(u32),
     TokenIdCounter,
     Purchase(Address, u32),
+    Tips(u32), // Book ID -> Vec<Tip>
 }
 
 #[contract]
@@ -28,11 +40,19 @@ pub struct HelloWorldContract;
 
 #[contractimpl]
 impl HelloWorldContract {
+    pub fn initialize(env: Env, admin: Address) {
+        if env.storage().instance().has(&DataKey::Admin) {
+            panic!("Already initialized");
+        }
+        env.storage().instance().set(&DataKey::Admin, &admin);
+    }
+
     pub fn publish_book(
         env: Env,
         author: Address,
         title: String,
         author_name: String,
+        description: String,
         price: i128,
         cover_uri: String,
         book_uri: String,
@@ -57,6 +77,7 @@ impl HelloWorldContract {
             price,
             cover_uri,
             book_uri,
+            description,
             is_special,
             total_supply,
             remaining_supply,
@@ -100,9 +121,29 @@ impl HelloWorldContract {
             panic!("You have already bought this book");
         }
 
+        // Get admin address
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .expect("Contract not initialized");
+
+        // Calculate fee (10%)
+        let fee = book.price / 10;
+        let author_amount = book.price - fee;
+
         // Transfer funds
         let token = token::Client::new(&env, &token_address);
-        token.transfer(&buyer, &book.author_address, &book.price);
+
+        // 10% to admin
+        if fee > 0 {
+            token.transfer(&buyer, &admin, &fee);
+        }
+
+        // Remainder to author
+        if author_amount > 0 {
+            token.transfer(&buyer, &book.author_address, &author_amount);
+        }
 
         // Record purchase
         env.storage()
@@ -122,6 +163,55 @@ impl HelloWorldContract {
         env.storage()
             .persistent()
             .has(&DataKey::Purchase(buyer, book_id))
+    }
+
+    pub fn tip_author(
+        env: Env,
+        sender: Address,
+        book_id: u32,
+        amount: i128,
+        message: String,
+        token_address: Address,
+    ) {
+        sender.require_auth();
+
+        let book: Book = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Book(book_id))
+            .expect("Book not found");
+
+        if amount <= 0 {
+            panic!("Tip amount must be positive");
+        }
+
+        let token = token::Client::new(&env, &token_address);
+        token.transfer(&sender, &book.author_address, &amount);
+
+        // Store the tip
+        let mut tips: soroban_sdk::Vec<Tip> = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Tips(book_id))
+            .unwrap_or(soroban_sdk::Vec::new(&env));
+
+        tips.push_back(Tip {
+            sender,
+            amount,
+            message,
+            timestamp: env.ledger().timestamp(),
+        });
+
+        env.storage()
+            .persistent()
+            .set(&DataKey::Tips(book_id), &tips);
+    }
+
+    pub fn get_tips(env: Env, book_id: u32) -> soroban_sdk::Vec<Tip> {
+        env.storage()
+            .persistent()
+            .get(&DataKey::Tips(book_id))
+            .unwrap_or(soroban_sdk::Vec::new(&env))
     }
 }
 

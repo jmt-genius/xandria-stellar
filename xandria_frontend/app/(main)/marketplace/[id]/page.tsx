@@ -10,6 +10,7 @@ import { bookMetadata } from "@/data/book-metadata";
 import { reviews as allReviews } from "@/data/reviews";
 import { authors } from "@/data/authors";
 import dynamic from "next/dynamic";
+import TipModal from "@/components/tip-modal";
 import MintNumberOverlay from "@/components/mint-number-overlay";
 import RatingDots from "@/components/rating-dots";
 import BookCover from "@/components/book-cover";
@@ -35,8 +36,11 @@ export default function BookDetailsPage({
   const [book, setBook] = useState<Book | null>(null);
   const [loading, setLoading] = useState(true);
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
+  const [showTipModal, setShowTipModal] = useState(false);
   const [showAiSummary, setShowAiSummary] = useState(false);
   const [showOwnershipModal, setShowOwnershipModal] = useState(false);
+  const [tips, setTips] = useState<any[]>([]);
+  const [loadingTips, setLoadingTips] = useState(false);
 
   const metadata = bookMetadata[bookId];
   const bookReviews = useMemo(() => allReviews.filter((r) => r.bookId === bookId), [bookId]);
@@ -239,7 +243,7 @@ export default function BookDetailsPage({
             </div>
           )}
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             {owned ? (
               <Link
                 href={`/library/${book.id}/read`}
@@ -255,13 +259,27 @@ export default function BookDetailsPage({
                 Sold Out
               </button>
             ) : (
+              book.authorAddress !== walletAddress && (
+                <button
+                  onClick={() => setShowPurchaseModal(true)}
+                  className="py-3.5 px-10 bg-accent text-background font-body font-medium text-sm transition-opacity hover:opacity-90"
+                >
+                  Own This Book
+                </button>
+              )
+            )}
+
+            {/* Tip Author button — visible to non-authors who have a wallet */}
+            {walletAddress && book.authorAddress !== walletAddress && (
               <button
-                onClick={() => setShowPurchaseModal(true)}
-                className="py-3.5 px-10 bg-accent text-background font-body font-medium text-sm transition-opacity hover:opacity-90"
+                onClick={() => setShowTipModal(true)}
+                className="py-3.5 px-10 bg-background border border-accent text-accent font-body font-medium text-sm transition-colors hover:bg-accent hover:text-background"
               >
-                Own This Book
+                Tip Author
               </button>
             )}
+
+            {/* Ownership info button — shown alongside "Own This Book" */}
             {!owned && !isSoldOut && (
               <button
                 onClick={() => setShowOwnershipModal(true)}
@@ -273,7 +291,43 @@ export default function BookDetailsPage({
             )}
           </div>
 
-          {/* Why people read this */}
+          {/* Author tips inbox — only visible to the book's author */}
+          {walletAddress && book.authorAddress === walletAddress && (
+            <div className="mt-8">
+              <button
+                onClick={async () => {
+                  setLoadingTips(true);
+                  try {
+                    const client = getContractClient();
+                    const result = await client.get_tips({ book_id: bookId });
+                    setTips(result.result || []);
+                  } catch (e) {
+                    console.error("Error loading tips:", e);
+                  } finally {
+                    setLoadingTips(false);
+                  }
+                }}
+                className="text-sm text-accent hover:underline mb-4"
+              >
+                {loadingTips ? "Loading..." : "View Tips & Messages"}
+              </button>
+
+              {tips.length > 0 && (
+                <div className="space-y-3 max-h-60 overflow-y-auto">
+                  {tips.map((tip: any, idx: number) => (
+                    <div key={idx} className="p-4 bg-surface border border-border rounded-lg">
+                      <p className="text-text-primary text-sm mb-1">{tip.message}</p>
+                      <p className="text-text-muted text-xs">
+                        {stroopsToXlm(tip.amount)} XLM from {tip.sender.slice(0, 8)}...
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Why people read this — enriched metadata section */}
           {metadata && (
             <div className="mt-10 space-y-8">
               <WhyPeopleRead reasons={metadata.whyPeopleRead} />
@@ -287,6 +341,14 @@ export default function BookDetailsPage({
 
       {showPurchaseModal && book && (
         <PurchaseModal book={book} onClose={() => setShowPurchaseModal(false)} />
+      )}
+
+      {showTipModal && book && (
+        <TipModal
+          bookId={book.id}
+          authorAddress={book.authorAddress}
+          onClose={() => setShowTipModal(false)}
+        />
       )}
 
       <WhatOwnershipModal

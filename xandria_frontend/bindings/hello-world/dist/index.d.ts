@@ -1,20 +1,27 @@
 import { Buffer } from "buffer";
 import { AssembledTransaction, Client as ContractClient, ClientOptions as ContractClientOptions, MethodOptions } from "@stellar/stellar-sdk/contract";
-import type { u32, i128, Option } from "@stellar/stellar-sdk/contract";
+import type { u32, u64, i128, Option } from "@stellar/stellar-sdk/contract";
 export * from "@stellar/stellar-sdk";
 export * as contract from "@stellar/stellar-sdk/contract";
 export * as rpc from "@stellar/stellar-sdk/rpc";
 export declare const networks: {
     readonly testnet: {
         readonly networkPassphrase: "Test SDF Network ; September 2015";
-        readonly contractId: "CAON5KLCJJLLRJYXKTJCMZG5H27SM5GP4RWQJLKH3P4O3IDDEF24B4GR";
+        readonly contractId: "CCK3XSWGFOAH2K6OLQYFDHS2OR62TMZ3YESFAF2LDD7RS76I6CPO7GKK";
     };
 };
+export interface Tip {
+    amount: i128;
+    message: string;
+    sender: string;
+    timestamp: u64;
+}
 export interface Book {
     author: string;
     author_address: string;
     book_uri: string;
     cover_uri: string;
+    description: string;
     is_special: boolean;
     price: i128;
     remaining_supply: u32;
@@ -22,6 +29,9 @@ export interface Book {
     total_supply: u32;
 }
 export type DataKey = {
+    tag: "Admin";
+    values: void;
+} | {
     tag: "Book";
     values: readonly [u32];
 } | {
@@ -30,6 +40,9 @@ export type DataKey = {
 } | {
     tag: "Purchase";
     values: readonly [string, u32];
+} | {
+    tag: "Tips";
+    values: readonly [u32];
 };
 export interface Client {
     /**
@@ -47,12 +60,35 @@ export interface Client {
         book_id: u32;
     }, options?: MethodOptions) => Promise<AssembledTransaction<Option<Book>>>;
     /**
+     * Construct and simulate a get_tips transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
+     */
+    get_tips: ({ book_id }: {
+        book_id: u32;
+    }, options?: MethodOptions) => Promise<AssembledTransaction<Array<Tip>>>;
+    /**
+     * Construct and simulate a initialize transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
+     */
+    initialize: ({ admin }: {
+        admin: string;
+    }, options?: MethodOptions) => Promise<AssembledTransaction<null>>;
+    /**
+     * Construct and simulate a tip_author transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
+     */
+    tip_author: ({ sender, book_id, amount, message, token_address }: {
+        sender: string;
+        book_id: u32;
+        amount: i128;
+        message: string;
+        token_address: string;
+    }, options?: MethodOptions) => Promise<AssembledTransaction<null>>;
+    /**
      * Construct and simulate a publish_book transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
      */
-    publish_book: ({ author, title, author_name, price, cover_uri, book_uri, is_special, supply }: {
+    publish_book: ({ author, title, author_name, description, price, cover_uri, book_uri, is_special, supply }: {
         author: string;
         title: string;
         author_name: string;
+        description: string;
         price: i128;
         cover_uri: string;
         book_uri: string;
@@ -83,6 +119,9 @@ export declare class Client extends ContractClient {
     readonly fromJSON: {
         buy_book: (json: string) => AssembledTransaction<null>;
         get_book: (json: string) => AssembledTransaction<Option<Book>>;
+        get_tips: (json: string) => AssembledTransaction<Tip[]>;
+        initialize: (json: string) => AssembledTransaction<null>;
+        tip_author: (json: string) => AssembledTransaction<null>;
         publish_book: (json: string) => AssembledTransaction<number>;
         has_purchased: (json: string) => AssembledTransaction<boolean>;
     };
