@@ -3,6 +3,7 @@
 import { useRef, useEffect, useCallback, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useStore } from "@/stores/useStore";
+import { uuid } from "@/lib/utils";
 import { serializeRange, deserializeRange, applyHighlightMark } from "@/lib/highlight-utils";
 import HighlightMenu from "@/components/reader/highlight-menu";
 import type { Highlight } from "@/types";
@@ -30,7 +31,7 @@ export default function ReaderContent({
   const [menuPosition, setMenuPosition] = useState<{ x: number; y: number } | null>(null);
   const [pendingRange, setPendingRange] = useState<Range | null>(null);
 
-  const { addHighlight, getHighlightsForPage, walletAddress } = useStore();
+  const { addHighlight, getHighlightsForPage, walletAddress, setSelectedText } = useStore();
 
   // Re-apply saved highlights after content renders
   useEffect(() => {
@@ -56,6 +57,7 @@ export default function ReaderContent({
     if (!selection || selection.isCollapsed || !contentRef.current) {
       setMenuPosition(null);
       setPendingRange(null);
+      setSelectedText(null);
       return;
     }
 
@@ -65,7 +67,13 @@ export default function ReaderContent({
     if (!contentRef.current.contains(range.commonAncestorContainer)) {
       setMenuPosition(null);
       setPendingRange(null);
+      setSelectedText(null);
       return;
+    }
+
+    const text = range.toString().trim();
+    if (text) {
+      setSelectedText(text.slice(0, 1000));
     }
 
     const rect = range.getBoundingClientRect();
@@ -74,7 +82,7 @@ export default function ReaderContent({
       y: rect.top - 8,
     });
     setPendingRange(range.cloneRange());
-  }, []);
+  }, [setSelectedText]);
 
   const handleHighlight = useCallback(() => {
     if (!pendingRange || !contentRef.current || !walletAddress) return;
@@ -85,7 +93,7 @@ export default function ReaderContent({
     const serialized = serializeRange(pendingRange, contentRef.current);
 
     const highlight: Highlight = {
-      id: crypto.randomUUID(),
+      id: uuid(),
       bookId,
       ownerAddress: walletAddress,
       text,
@@ -113,8 +121,9 @@ export default function ReaderContent({
     if (menuPosition) {
       setMenuPosition(null);
       setPendingRange(null);
+      setSelectedText(null);
     }
-  }, [menuPosition]);
+  }, [menuPosition, setSelectedText]);
 
   return (
     <div className="flex-1 flex items-center justify-center px-6">

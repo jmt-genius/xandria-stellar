@@ -4,6 +4,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Book } from "@/types";
 import { useStore } from "@/stores/useStore";
+import { uuid } from "@/lib/utils";
 import CoverReveal from "./cover-reveal";
 
 type Phase = "confirm" | "signing" | "minting" | "success" | "error";
@@ -43,7 +44,7 @@ export default function PurchaseModal({
   const handleRevealComplete = () => {
     setTimeout(() => {
       addNotification({
-        id: crypto.randomUUID(),
+        id: uuid(),
         title: `${book.title}`,
         subtitle: `Edition ${formatMint(mintNumber)}`,
         type: "purchase",

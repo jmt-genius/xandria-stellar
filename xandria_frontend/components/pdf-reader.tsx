@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import { motion, AnimatePresence } from "framer-motion";
+import { useStore } from "@/stores/useStore";
 
 // Set up PDF.js worker
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
@@ -70,6 +71,8 @@ export default function PdfReader({
     // Keyboard navigation
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
+            const tag = (e.target as HTMLElement)?.tagName;
+            if (tag === "INPUT" || tag === "TEXTAREA") return;
             if (e.key === "ArrowRight" || e.key === " ") {
                 e.preventDefault();
                 goNext();
@@ -82,6 +85,16 @@ export default function PdfReader({
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
     }, [goNext, goPrev]);
+
+    const setSelectedText = useStore((s) => s.setSelectedText);
+
+    const handleTextSelection = useCallback(() => {
+        const selection = window.getSelection();
+        const text = selection?.toString().trim();
+        if (text) {
+            setSelectedText(text.slice(0, 1000));
+        }
+    }, [setSelectedText]);
 
     const [pdfData, setPdfData] = useState<string | null>(null);
 
@@ -163,7 +176,7 @@ export default function PdfReader({
             </div>
 
             {/* PDF Container */}
-            <div className="flex-1 flex items-center justify-center mx-[15%] overflow-auto">
+            <div className="flex-1 flex items-center justify-center mx-[15%] overflow-auto" onMouseUp={handleTextSelection}>
                 <AnimatePresence mode="wait">
                     {loading && (
                         <motion.div

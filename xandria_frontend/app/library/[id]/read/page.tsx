@@ -77,6 +77,13 @@ export default function ReaderPage({
   // State for file-based readers
   const [fileReaderProgress, setFileReaderProgress] = useState({ current: 0, total: 1 });
 
+  // Clear selected text context on unmount
+  useEffect(() => {
+    return () => {
+      useStore.getState().setSelectedText(null);
+    };
+  }, []);
+
   useEffect(() => {
     fetchBooks().then(() => setLoaded(true));
   }, [fetchBooks]);
@@ -165,6 +172,9 @@ export default function ReaderPage({
         setAiOpen((prev) => !prev);
         return;
       }
+      // Don't hijack keys when user is typing in an input or textarea
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
       // Only handle navigation for chapter-based reader
       if (!useFileReader) {
         if (e.key === "ArrowRight" || e.key === " ") {

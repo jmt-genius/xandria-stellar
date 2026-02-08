@@ -15,8 +15,7 @@ export default function DrmWrapper({
   const [contentBlurred, setContentBlurred] = useState(false);
   const messageTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const blurTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Track whether meta+shift is being held (macOS screenshot combo)
-  const metaShiftHeldRef = useRef(false);
+
 
   const showProtectionMessage = useCallback(() => {
     setShowMessage(true);
@@ -42,12 +41,21 @@ export default function DrmWrapper({
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const key = e.key.toLowerCase();
+      const tag = (e.target as HTMLElement)?.tagName;
+      const isInput = tag === "INPUT" || tag === "TEXTAREA";
 
-      // Block copy, print, save, select-all
+      // Block copy, cut, print, save (but NOT select-all — highlighting is allowed)
+      // Allow copy/cut inside inputs so the user can edit their own typed text
       if (
         (e.ctrlKey || e.metaKey) &&
-        (key === "c" || key === "p" || key === "s" || key === "a")
+        (key === "c" || key === "x") &&
+        !isInput
       ) {
+        e.preventDefault();
+        showProtectionMessage();
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && (key === "p" || key === "s")) {
         e.preventDefault();
         showProtectionMessage();
         return;
@@ -93,19 +101,9 @@ export default function DrmWrapper({
       }
 
       // === macOS SCREENSHOT DETECTION ===
-      // On macOS, Cmd+Shift+3/4/5 are intercepted by the OS before the browser
-      // gets the "3"/"4"/"5" keydown event. The browser DOES receive the keydown
-      // for Meta and Shift individually. So we detect when both Meta and Shift
-      // are held simultaneously and preemptively blur the content.
-      // This catches all three macOS screenshot combos.
-      if (e.metaKey && e.shiftKey && !metaShiftHeldRef.current) {
-        metaShiftHeldRef.current = true;
-        blurContent(2000);
-        showProtectionMessage();
-        return;
-      }
-
-      // Also catch any Cmd+Shift+3/4/5 that DO arrive (some browser versions)
+      // Catch Cmd+Shift+3/4/5 that arrive in some browser versions.
+      // We no longer preemptively blur on any Cmd+Shift hold because
+      // that causes false positives during normal text selection shortcuts.
       if (
         e.metaKey &&
         e.shiftKey &&
@@ -118,18 +116,9 @@ export default function DrmWrapper({
       }
     };
 
-    const handleKeyUp = (e: KeyboardEvent) => {
-      // Reset meta+shift tracking when either key is released
-      if (e.key === "Meta" || e.key === "Shift") {
-        metaShiftHeldRef.current = false;
-      }
-    };
-
     document.addEventListener("keydown", handleKeyDown);
-    document.addEventListener("keyup", handleKeyUp);
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
-      document.removeEventListener("keyup", handleKeyUp);
     };
   }, [showProtectionMessage, blurContent]);
 
@@ -145,6 +134,10 @@ export default function DrmWrapper({
   }, [showProtectionMessage]);
 
   // === VISIBILITY CHANGE DETECTION ===
+  // Only blur when the tab is actually hidden (alt-tab, tab switch).
+  // We intentionally do NOT listen for window blur/focus — those fire
+  // during normal interactions like text selection near window edges,
+  // clicking into iframes (EPUB reader), or opening the AI sidebar.
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.hidden) {
@@ -154,22 +147,10 @@ export default function DrmWrapper({
       }
     };
 
-    const handleWindowBlur = () => {
-      setContentBlurred(true);
-    };
-
-    const handleWindowFocus = () => {
-      setTimeout(() => setContentBlurred(false), 300);
-    };
-
     document.addEventListener("visibilitychange", handleVisibilityChange);
-    window.addEventListener("blur", handleWindowBlur);
-    window.addEventListener("focus", handleWindowFocus);
 
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
-      window.removeEventListener("blur", handleWindowBlur);
-      window.removeEventListener("focus", handleWindowFocus);
     };
   }, []);
 

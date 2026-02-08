@@ -6,9 +6,9 @@ import type { Book, OwnedBook, AiMessage, Notification, ReadingSession, ReadingP
 import { getContractClient, stroopsToXlm } from "@/lib/stellar";
 import { XLM_TOKEN_ADDRESS, NETWORK_PASSPHRASE } from "@/lib/constants";
 import { bookEnrichment } from "@/data/books";
-import { getAiResponse } from "@/data/ai-responses";
 import { mockSessions } from "@/data/mock-sessions";
 import { bookMetadata } from "@/data/book-metadata";
+import { uuid } from "@/lib/utils";
 
 interface AppStore {
   // Hydration
@@ -42,7 +42,11 @@ interface AppStore {
 
   // AI
   aiMessages: Record<number, AiMessage[]>;
-  sendAiMessage: (bookId: number, message: string) => Promise<void>;
+  sendAiMessage: (bookId: number, message: string, selectedText?: string | null) => Promise<void>;
+
+  // Selected text context (transient, not persisted)
+  selectedText: string | null;
+  setSelectedText: (text: string | null) => void;
 
   // Notifications
   notifications: Notification[];
@@ -322,12 +326,20 @@ export const useStore = create<AppStore>()(
 
       // AI
       aiMessages: {},
-      sendAiMessage: async (bookId, message) => {
+
+      // Selected text context
+      selectedText: null,
+      setSelectedText: (text) => set({ selectedText: text }),
+
+      sendAiMessage: async (bookId, message, selectedText) => {
         const existing = get().aiMessages[bookId] || [];
+        const displayContent = selectedText
+          ? `${message}\n\n> ${selectedText.length > 200 ? selectedText.slice(0, 200) + "..." : selectedText}`
+          : message;
         const userMsg: AiMessage = {
-          id: crypto.randomUUID(),
+          id: uuid(),
           role: "user",
-          content: message,
+          content: displayContent,
           timestamp: new Date().toISOString(),
         };
         set({
@@ -337,21 +349,112 @@ export const useStore = create<AppStore>()(
           },
         });
 
-        await new Promise((r) => setTimeout(r, 800 + Math.random() * 700));
+        const book = get().getBookById(bookId);
+        const mode = get().aiPaneMode;
 
-        const response = getAiResponse(bookId, message);
-        const aiMsg: AiMessage = {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          content: response,
-          timestamp: new Date().toISOString(),
-        };
-        set({
-          aiMessages: {
-            ...get().aiMessages,
-            [bookId]: [...(get().aiMessages[bookId] || []), aiMsg],
-          },
-        });
+        // Build conversation history for the API (role + content only)
+        const history = [...existing, userMsg].map((m) => ({
+          role: m.role,
+          content: m.content,
+        }));
+
+        const aiMsgId = uuid();
+
+        try {
+          const response = await fetch("/api/chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              messages: history,
+              bookTitle: book?.title || "Unknown",
+              bookAuthor: book?.author || "Unknown",
+              mode,
+              ...(selectedText ? { selectedText } : {}),
+            }),
+          });
+
+          if (!response.ok) {
+            throw new Error(`API error: ${response.status}`);
+          }
+
+          const reader = response.body?.getReader();
+          if (!reader) throw new Error("No response body");
+
+          const decoder = new TextDecoder();
+          let accumulated = "";
+          let created = false;
+
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            accumulated += decoder.decode(value, { stream: true });
+
+            if (!created) {
+              // First chunk — create the assistant message
+              set({
+                aiMessages: {
+                  ...get().aiMessages,
+                  [bookId]: [
+                    ...(get().aiMessages[bookId] || []),
+                    {
+                      id: aiMsgId,
+                      role: "assistant" as const,
+                      content: accumulated,
+                      timestamp: new Date().toISOString(),
+                    },
+                  ],
+                },
+              });
+              created = true;
+            } else {
+              // Update the streaming message
+              set({
+                aiMessages: {
+                  ...get().aiMessages,
+                  [bookId]: (get().aiMessages[bookId] || []).map((m) =>
+                    m.id === aiMsgId ? { ...m, content: accumulated } : m
+                  ),
+                },
+              });
+            }
+          }
+
+          if (!created) {
+            // Stream returned nothing
+            set({
+              aiMessages: {
+                ...get().aiMessages,
+                [bookId]: [
+                  ...(get().aiMessages[bookId] || []),
+                  {
+                    id: aiMsgId,
+                    role: "assistant" as const,
+                    content:
+                      "I didn't receive a response. Please try again.",
+                    timestamp: new Date().toISOString(),
+                  },
+                ],
+              },
+            });
+          }
+        } catch {
+          set({
+            aiMessages: {
+              ...get().aiMessages,
+              [bookId]: [
+                ...(get().aiMessages[bookId] || []),
+                {
+                  id: aiMsgId,
+                  role: "assistant" as const,
+                  content:
+                    "Sorry, I couldn't process your request. Please try again.",
+                  timestamp: new Date().toISOString(),
+                },
+              ],
+            },
+          });
+        }
       },
 
       // Notifications

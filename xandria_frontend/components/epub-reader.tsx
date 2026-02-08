@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import type { Book, Rendition } from "epubjs";
+import { useStore } from "@/stores/useStore";
 
 interface EpubReaderProps {
     bookUri: string;
@@ -150,6 +151,18 @@ export default function EpubReader({
                     onPageChangeRef.current?.(1, total);
                 }
 
+                // Listen for text selection inside the EPUB iframe
+                try {
+                    rendition.on("selected", (_cfiRange: string, contents: any) => {
+                        const text = contents?.window?.getSelection()?.toString()?.trim();
+                        if (text) {
+                            useStore.getState().setSelectedText(text.slice(0, 1000));
+                        }
+                    });
+                } catch {
+                    // iframe security edge case — selection capture not available
+                }
+
                 // Listen for location changes
                 rendition.on("relocated", (location: any) => {
                     if (!mounted) return;
@@ -207,6 +220,8 @@ export default function EpubReader({
     // Keyboard navigation
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
+            const tag = (e.target as HTMLElement)?.tagName;
+            if (tag === "INPUT" || tag === "TEXTAREA") return;
             if (e.key === "ArrowRight" || e.key === " ") {
                 e.preventDefault();
                 goNext();
