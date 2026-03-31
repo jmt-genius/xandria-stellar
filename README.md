@@ -3,6 +3,7 @@
 A blockchain-powered platform for authors to publish and sell digital books as NFTs, built on the Stellar blockchain using Soroban smart contracts.
 
 ## Live Demo
+**Demo link:** https://youtu.be/no685NumS-4
 
 **Frontend:** `https://www.xandria.store/` 
 
